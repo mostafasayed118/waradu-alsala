@@ -1,37 +1,36 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:provider/provider.dart';
-import 'providers/counter_provider.dart';
+import 'providers/counters_provider.dart';
 import 'providers/settings_provider.dart';
 import 'services/storage_service.dart';
 import 'services/notification_service.dart';
 import 'screens/home_screen.dart';
 import 'screens/settings_screen.dart';
 import 'screens/about_screen.dart';
+import 'screens/stats_screen.dart';
 import 'utils/app_theme.dart';
 import 'utils/app_strings.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  
+
   // Initialize services
   final storageService = StorageService();
   await storageService.init();
-  
+
   final notificationService = NotificationService();
   await notificationService.init();
-
-  final settings = await storageService.getSettings();
-  final daily = settings.dailyCounter || settings.dailyTarget > 0;
 
   runApp(
     MultiProvider(
       providers: [
         ChangeNotifierProvider(
-          create: (_) => CounterProvider(storageService)..load(daily: daily),
+          create: (_) =>
+              CountersProvider(storageService, notificationService)..load(),
         ),
         ChangeNotifierProvider(
-          create: (_) => SettingsProvider(storageService, notificationService)..load(),
+          create: (_) => SettingsProvider(storageService)..load(),
         ),
       ],
       child: const MyApp(),
@@ -49,7 +48,7 @@ class MyApp extends StatelessWidget {
         return MaterialApp(
           title: AppStrings.appName,
           debugShowCheckedModeBanner: false,
-          
+
           // RTL support
           locale: const Locale('ar', 'SA'),
           supportedLocales: const [
@@ -60,18 +59,19 @@ class MyApp extends StatelessWidget {
             GlobalWidgetsLocalizations.delegate,
             GlobalCupertinoLocalizations.delegate,
           ],
-          
+
           // Theme
           theme: AppTheme.lightTheme(),
           darkTheme: AppTheme.darkTheme(),
           themeMode: settings.isDarkMode ? ThemeMode.dark : ThemeMode.light,
-          
+
           // Routes
           initialRoute: '/',
           routes: {
             '/': (context) => const HomeScreen(),
             '/settings': (context) => const SettingsScreen(),
             '/about': (context) => const AboutScreen(),
+            '/stats': (context) => const StatsScreen(),
           },
         );
       },

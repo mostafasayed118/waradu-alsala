@@ -1,5 +1,6 @@
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:salawat_app/models/adhkar_counter.dart';
 import 'package:salawat_app/services/notification_service.dart';
 
 const MethodChannel _channel =
@@ -26,5 +27,25 @@ void main() {
     final second = NotificationService();
     await second.init();
     expect(initializeCalls, 2);
+  });
+
+  test('rescheduleAll schedules only enabled counters', () async {
+    final calls = <String>[];
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(_channel, (MethodCall call) async {
+      calls.add(call.method);
+      return call.method == 'initialize' ? true : null;
+    });
+
+    final service = NotificationService();
+    await service.init();
+
+    await service.rescheduleAll([
+      AdhkarCounter(id: 'a', name: 'A', remindersEnabled: true),
+      AdhkarCounter(id: 'b', name: 'B', remindersEnabled: false),
+    ]);
+
+    expect(calls.where((c) => c == 'zonedSchedule').length, 1);
+    expect(calls, contains('cancelAll'));
   });
 }

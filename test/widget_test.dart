@@ -1,14 +1,14 @@
 import 'dart:convert';
 
+import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:salawat_app/main.dart';
-import 'package:salawat_app/models/app_settings.dart';
-import 'package:salawat_app/models/counter_data.dart';
-import 'package:salawat_app/providers/counter_provider.dart';
+import 'package:salawat_app/models/adhkar_counter.dart';
+import 'package:salawat_app/providers/counters_provider.dart';
 import 'package:salawat_app/providers/settings_provider.dart';
 import 'package:salawat_app/services/notification_service.dart';
 import 'package:salawat_app/services/storage_service.dart';
@@ -16,21 +16,31 @@ import 'package:salawat_app/services/storage_service.dart';
 const MethodChannel _notificationsChannel =
     MethodChannel('dexterous.com/flutter/local_notifications');
 
-Future<void> pumpApp(WidgetTester tester) async {
+class _FakeNotificationService extends NotificationService {
+  bool permissionGranted = true;
+
+  @override
+  Future<bool> requestPermission() async => permissionGranted;
+}
+
+Future<void> pumpApp(
+  WidgetTester tester, {
+  NotificationService? notificationService,
+}) async {
   final storageService = StorageService();
   await storageService.init();
 
-  final notificationService = NotificationService();
-  await notificationService.init();
+  final notif = notificationService ?? NotificationService();
+  await notif.init();
 
   await tester.pumpWidget(
     MultiProvider(
       providers: [
         ChangeNotifierProvider(
-          create: (_) => CounterProvider(storageService)..load(),
+          create: (_) => CountersProvider(storageService, notif)..load(),
         ),
         ChangeNotifierProvider(
-          create: (_) => SettingsProvider(storageService, notificationService)..load(),
+          create: (_) => SettingsProvider(storageService)..load(),
         ),
       ],
       child: const MyApp(),
@@ -51,28 +61,32 @@ void main() {
     });
   });
 
-  testWidgets('Home screen should display counter', (WidgetTester tester) async {
+  testWidgets('Home screen displays the active counter', (WidgetTester tester) async {
     await pumpApp(tester);
 
     expect(find.text('0'), findsOneWidget);
-    expect(find.text('صَلَّيْتُ عَلَى النَّبِي ﷺ'), findsOneWidget);
+    expect(find.text('اضغط للعد'), findsOneWidget);
+    expect(find.text('الصلاة على النبي ﷺ'), findsWidgets);
   });
 
-  testWidgets('Increment button should increase counter', (WidgetTester tester) async {
+  testWidgets('Increment button increases the counter', (WidgetTester tester) async {
     await pumpApp(tester);
 
-    await tester.tap(find.text('صَلَّيْتُ عَلَى النَّبِي ﷺ'));
+    await tester.ensureVisible(find.text('اضغط للعد'));
+    await tester.tap(find.text('اضغط للعد'));
     await tester.pumpAndSettle();
     expect(find.text('1'), findsOneWidget);
 
-    await tester.tap(find.text('صَلَّيْتُ عَلَى النَّبِي ﷺ'));
+    await tester.ensureVisible(find.text('اضغط للعد'));
+    await tester.tap(find.text('اضغط للعد'));
     await tester.pumpAndSettle();
     expect(find.text('2'), findsOneWidget);
   });
 
-  testWidgets('Reset button should show confirmation dialog', (WidgetTester tester) async {
+  testWidgets('Reset button shows a confirmation dialog', (WidgetTester tester) async {
     await pumpApp(tester);
 
+    await tester.ensureVisible(find.text('إعادة تعيين'));
     await tester.tap(find.text('إعادة تعيين'));
     await tester.pumpAndSettle();
 
@@ -80,44 +94,62 @@ void main() {
     expect(find.text('هل أنت متأكد من إعادة تعيين العداد؟'), findsOneWidget);
   });
 
-  testWidgets('notifications toggle shows snackbar when permission is denied',
-      (WidgetTester tester) async {
-    // Start with notifications disabled so the switch is off.
+  testWidgets('switches between counters', (WidgetTester tester) async {
     SharedPreferences.setMockInitialValues({
-      'app_settings': jsonEncode(AppSettings(notificationsEnabled: false).toJson()),
-    });
-
-    // Deny the notification permission.
-    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-        .setMockMethodCallHandler(_notificationsChannel, (MethodCall call) async {
-      if (call.method == 'requestNotificationsPermission') {
-        return false;
-      }
-      return call.method == 'initialize' ? true : null;
+      'adhkar_counters': jsonEncode([
+        AdhkarCounter(id: 'salawat', name: 'الصلاة على النبي ﷺ').toJson(),
+        AdhkarCounter(
+          id: 'tasbih',
+          name: 'سبحان الله',
+          currentCount: 99,
+          totalCount: 99,
+        ).toJson(),
+      ]),
     });
 
     await pumpApp(tester);
+
+    expect(find.text('0'), findsOneWidget);
+
+    await tester.tap(find.text('سبحان الله'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('99'), findsOneWidget);
+  });
+
+  testWidgets('reminder toggle shows snackbar when permission is denied',
+      (WidgetTester tester) async {
+    final notif = _FakeNotificationService()..permissionGranted = false;
+
+    await pumpApp(tester, notificationService: notif);
 
     // Navigate to the settings screen.
     await tester.tap(find.byIcon(Icons.settings));
     await tester.pumpAndSettle();
 
-    // Enable notifications.
-    await tester.tap(find.text('تفعيل الإشعارات'));
+    // Enable reminders for the active counter.
+    await tester.tap(find.text('التذكيرات'));
     await tester.pumpAndSettle();
 
     // The snackbar is shown and the switch stays off.
     expect(find.text('لم يتم منح إذن الإشعارات'), findsOneWidget);
-    final notificationsSwitch =
-        tester.widget<SwitchListTile>(find.byType(SwitchListTile).first);
-    expect(notificationsSwitch.value, isFalse);
+    final remindersSwitch = tester.widget<SwitchListTile>(
+      find.widgetWithText(SwitchListTile, 'التذكيرات'),
+    );
+    expect(remindersSwitch.value, isFalse);
   });
 
   testWidgets('shows daily target progress', (WidgetTester tester) async {
     SharedPreferences.setMockInitialValues({
-      'app_settings': jsonEncode(AppSettings(dailyTarget: 100).toJson()),
-      'counter_data':
-          jsonEncode(CounterData(currentCount: 40, totalCount: 40).toJson()),
+      'adhkar_counters': jsonEncode([
+        AdhkarCounter(
+          id: 'salawat',
+          name: 'الصلاة على النبي ﷺ',
+          currentCount: 40,
+          totalCount: 40,
+          dailyTarget: 100,
+        ).toJson(),
+      ]),
     });
 
     await pumpApp(tester);
@@ -129,11 +161,13 @@ void main() {
   testWidgets('reaching the daily target fires a notification',
       (WidgetTester tester) async {
     SharedPreferences.setMockInitialValues({
-      'app_settings': jsonEncode(
-        AppSettings(notificationsEnabled: true, dailyTarget: 1).toJson(),
-      ),
-      'counter_data':
-          jsonEncode(CounterData(currentCount: 0, totalCount: 0).toJson()),
+      'adhkar_counters': jsonEncode([
+        AdhkarCounter(
+          id: 'salawat',
+          name: 'الصلاة على النبي ﷺ',
+          dailyTarget: 1,
+        ).toJson(),
+      ]),
     });
 
     var showedNotification = false;
@@ -147,10 +181,38 @@ void main() {
 
     await pumpApp(tester);
 
-    await tester.tap(find.text('صَلَّيْتُ عَلَى النَّبِي ﷺ'));
+    await tester.ensureVisible(find.text('اضغط للعد'));
+    await tester.tap(find.text('اضغط للعد'));
     await tester.pumpAndSettle();
 
     expect(showedNotification, isTrue);
     expect(find.text('تم الهدف'), findsOneWidget);
+  });
+
+  testWidgets('stats screen shows chart, totals, and streaks',
+      (WidgetTester tester) async {
+    SharedPreferences.setMockInitialValues({
+      'adhkar_counters': jsonEncode([
+        AdhkarCounter(
+          id: 'salawat',
+          name: 'الصلاة على النبي ﷺ',
+          currentCount: 3,
+          totalCount: 100,
+          dailyTarget: 5,
+          history: {'2025-01-01': 5},
+        ).toJson(),
+      ]),
+    });
+
+    await pumpApp(tester);
+
+    await tester.tap(find.text('الإحصائيات'));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(BarChart), findsOneWidget);
+    expect(find.text('الإجمالي الكلي'), findsOneWidget);
+    expect(find.text('أفضل يوم'), findsOneWidget);
+    expect(find.text('السلسلة الحالية'), findsOneWidget);
+    expect(find.text('أطول سلسلة'), findsOneWidget);
   });
 }

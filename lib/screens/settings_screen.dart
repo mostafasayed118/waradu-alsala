@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../models/app_settings.dart';
+import '../models/adhkar_counter.dart';
+import '../providers/counters_provider.dart';
 import '../providers/settings_provider.dart';
 
 class SettingsScreen extends StatelessWidget {
@@ -12,19 +13,40 @@ class SettingsScreen extends StatelessWidget {
       appBar: AppBar(
         title: const Text('الإعدادات'),
       ),
-      body: Consumer<SettingsProvider>(
-        builder: (context, settings, child) {
+      body: Consumer2<CountersProvider, SettingsProvider>(
+        builder: (context, counters, settings, child) {
+          final counter = counters.activeCounter;
           return ListView(
             padding: const EdgeInsets.all(16),
             children: [
-              // Notifications Section
-              _buildSectionTitle(context, 'الإشعارات'),
+              // Active counter section
+              _buildSectionTitle(context, 'العداد الحالي'),
+              ListTile(
+                leading: const Icon(Icons.edit),
+                title: const Text('الاسم'),
+                subtitle: Text(counter.name),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () => _showRenameDialog(context, counters),
+              ),
+              ListTile(
+                leading: const Icon(Icons.flag),
+                title: const Text('الهدف اليومي'),
+                subtitle: Text(
+                  counter.dailyTarget > 0
+                      ? '${counter.dailyTarget} مرة'
+                      : 'غير محدد',
+                ),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () => _showDailyTargetDialog(context, counters),
+              ),
               SwitchListTile(
-                title: const Text('تفعيل الإشعارات'),
-                subtitle: const Text('استلام تذكيرات بالصلاة على النبي ﷺ'),
-                value: settings.settings.notificationsEnabled,
+                secondary: const Icon(Icons.notifications_active),
+                title: const Text('التذكيرات'),
+                subtitle: const Text('استلام تذكيرات لهذا الذكر'),
+                value: counter.remindersEnabled,
                 onChanged: (value) async {
-                  final enabled = await settings.toggleNotifications(value);
+                  final enabled =
+                      await counters.setRemindersEnabled(counter.id, value);
                   if (value && !enabled && context.mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(
@@ -34,48 +56,53 @@ class SettingsScreen extends StatelessWidget {
                   }
                 },
               ),
-              
-              if (settings.settings.notificationsEnabled) ...[
-                // Reminder Type
+
+              if (counter.remindersEnabled) ...[
                 ListTile(
                   title: const Text('نوع التذكير'),
                   subtitle: Text(
-                    settings.settings.reminderType == ReminderType.interval
+                    counter.reminderType == ReminderType.interval
                         ? 'تذكير متكرر كل مدة محددة'
                         : 'تذكير في أوقات يومية',
                   ),
                   trailing: const Icon(Icons.chevron_right),
-                  onTap: () => _showReminderTypeDialog(context, settings),
+                  onTap: () => _showReminderTypeDialog(context, counters),
                 ),
-                
-                // Reminder Interval
-                if (settings.settings.reminderType == ReminderType.interval)
+                if (counter.reminderType == ReminderType.interval)
                   ListTile(
                     title: const Text('فاصل التذكير'),
-                    subtitle: Text(_getIntervalText(settings.settings.reminderIntervalMinutes)),
+                    subtitle: Text(_getIntervalText(counter.reminderIntervalMinutes)),
                     trailing: const Icon(Icons.chevron_right),
-                    onTap: () => _showIntervalDialog(context, settings),
+                    onTap: () => _showIntervalDialog(context, counters),
                   ),
-                
-                // Daily Reminder Times
-                if (settings.settings.reminderType == ReminderType.daily)
+                if (counter.reminderType == ReminderType.daily)
                   ListTile(
                     title: const Text('أوقات التذكير اليومية'),
                     subtitle: Text(
-                      settings.settings.dailyReminderTimes.isEmpty
+                      counter.dailyReminderTimes.isEmpty
                           ? 'لم يتم تحديد أوقات'
-                          : '${settings.settings.dailyReminderTimes.length} أوقات محددة',
+                          : '${counter.dailyReminderTimes.length} أوقات محددة',
                     ),
                     trailing: const Icon(Icons.chevron_right),
-                    onTap: () => _showDailyTimesDialog(context, settings),
+                    onTap: () => _showDailyTimesDialog(context, counters),
                   ),
               ],
-              
+              if (counters.counters.length > 1)
+                ListTile(
+                  leading: const Icon(Icons.delete, color: Colors.red),
+                  title: const Text(
+                    'حذف العداد',
+                    style: TextStyle(color: Colors.red),
+                  ),
+                  onTap: () => _showDeleteDialog(context, counters),
+                ),
+
               const Divider(),
-              
-              // Vibration Section
+
+              // Vibration section
               _buildSectionTitle(context, 'الاستجابة'),
               SwitchListTile(
+                secondary: const Icon(Icons.vibration),
                 title: const Text('الاهتزاز'),
                 subtitle: const Text('اهتزاز خفيف عند الضغط على زر العدد'),
                 value: settings.settings.vibrationEnabled,
@@ -83,35 +110,13 @@ class SettingsScreen extends StatelessWidget {
                   await settings.toggleVibration(value);
                 },
               ),
-              
+
               const Divider(),
-              
-              // Counter Section
-              _buildSectionTitle(context, 'العداد'),
-              SwitchListTile(
-                title: const Text('عداد يومي'),
-                subtitle: const Text('بدء العداد من الصفر يومياً مع الحفاظ على الإجمالي'),
-                value: settings.settings.dailyCounter,
-                onChanged: (value) async {
-                  await settings.toggleDailyCounter(value);
-                },
-              ),
-              ListTile(
-                title: const Text('الهدف اليومي'),
-                subtitle: Text(
-                  settings.settings.dailyTarget > 0
-                      ? '${settings.settings.dailyTarget} مرة'
-                      : 'غير محدد',
-                ),
-                trailing: const Icon(Icons.chevron_right),
-                onTap: () => _showDailyTargetDialog(context, settings),
-              ),
-              
-              const Divider(),
-              
-              // Appearance Section
+
+              // Appearance section
               _buildSectionTitle(context, 'المظهر'),
               SwitchListTile(
+                secondary: const Icon(Icons.dark_mode),
                 title: const Text('الوضع الداكن'),
                 subtitle: const Text('استخدام ألوان داكنة للتطبيق'),
                 value: settings.settings.isDarkMode,
@@ -119,11 +124,12 @@ class SettingsScreen extends StatelessWidget {
                   await settings.toggleDarkMode(value);
                 },
               ),
-              
+
               const Divider(),
-              
+
               // About
               ListTile(
+                leading: const Icon(Icons.info),
                 title: const Text('حول التطبيق'),
                 trailing: const Icon(Icons.chevron_right),
                 onTap: () {
@@ -143,9 +149,9 @@ class SettingsScreen extends StatelessWidget {
       child: Text(
         title,
         style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-          fontSize: 18,
-          fontWeight: FontWeight.bold,
-        ),
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+            ),
       ),
     );
   }
@@ -161,17 +167,83 @@ class SettingsScreen extends StatelessWidget {
     }
   }
 
-  void _showDailyTargetDialog(BuildContext context, SettingsProvider settings) {
+  void _showRenameDialog(BuildContext context, CountersProvider counters) {
+    final counter = counters.activeCounter;
+    final controller = TextEditingController(text: counter.name);
     showDialog(
       context: context,
-      builder: (dialogContext) => _DailyTargetDialog(
-        settings: settings,
-        initialValue: settings.settings.dailyTarget,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('تعديل الاسم'),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          decoration: const InputDecoration(labelText: 'اسم الذكر'),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('إلغاء'),
+          ),
+          TextButton(
+            onPressed: () async {
+              final name = controller.text.trim();
+              if (name.isNotEmpty) {
+                await counters.renameCounter(counter.id, name);
+              }
+              if (dialogContext.mounted) {
+                Navigator.pop(dialogContext);
+              }
+            },
+            child: const Text('حفظ'),
+          ),
+        ],
       ),
     );
   }
 
-  void _showReminderTypeDialog(BuildContext context, SettingsProvider settings) {
+  void _showDeleteDialog(BuildContext context, CountersProvider counters) {
+    final counter = counters.activeCounter;
+    showDialog(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('حذف العداد'),
+        content: Text('هل أنت متأكد من حذف "${counter.name}"؟'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('إلغاء'),
+          ),
+          TextButton(
+            onPressed: () async {
+              await counters.deleteCounter(counter.id);
+              if (dialogContext.mounted) {
+                Navigator.pop(dialogContext);
+              }
+            },
+            child: const Text('حذف', style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showDailyTargetDialog(BuildContext context, CountersProvider counters) {
+    final counter = counters.activeCounter;
+    showDialog(
+      context: context,
+      builder: (dialogContext) => _DailyTargetDialog(
+        counters: counters,
+        counterId: counter.id,
+        initialValue: counter.dailyTarget,
+      ),
+    );
+  }
+
+  void _showReminderTypeDialog(
+    BuildContext context,
+    CountersProvider counters,
+  ) {
+    final counter = counters.activeCounter;
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -183,9 +255,9 @@ class SettingsScreen extends StatelessWidget {
               title: const Text('تذكير متكرر'),
               subtitle: const Text('كل مدة محددة'),
               value: ReminderType.interval,
-              groupValue: settings.settings.reminderType,
+              groupValue: counter.reminderType,
               onChanged: (value) async {
-                await settings.setReminderType(value!);
+                await counters.setReminderType(counter.id, value!);
                 if (context.mounted) {
                   Navigator.pop(context);
                 }
@@ -195,9 +267,9 @@ class SettingsScreen extends StatelessWidget {
               title: const Text('تذكير يومي'),
               subtitle: const Text('في أوقات محددة يومياً'),
               value: ReminderType.daily,
-              groupValue: settings.settings.reminderType,
+              groupValue: counter.reminderType,
               onChanged: (value) async {
-                await settings.setReminderType(value!);
+                await counters.setReminderType(counter.id, value!);
                 if (context.mounted) {
                   Navigator.pop(context);
                 }
@@ -209,9 +281,10 @@ class SettingsScreen extends StatelessWidget {
     );
   }
 
-  void _showIntervalDialog(BuildContext context, SettingsProvider settings) {
+  void _showIntervalDialog(BuildContext context, CountersProvider counters) {
+    final counter = counters.activeCounter;
     final intervals = [15, 30, 60, 120, 180, 360, 720];
-    
+
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -225,9 +298,9 @@ class SettingsScreen extends StatelessWidget {
               final minutes = intervals[index];
               return ListTile(
                 title: Text(_getIntervalText(minutes)),
-                selected: settings.settings.reminderIntervalMinutes == minutes,
+                selected: counter.reminderIntervalMinutes == minutes,
                 onTap: () async {
-                  await settings.setReminderInterval(minutes);
+                  await counters.setReminderInterval(counter.id, minutes);
                   if (context.mounted) {
                     Navigator.pop(context);
                   }
@@ -240,9 +313,13 @@ class SettingsScreen extends StatelessWidget {
     );
   }
 
-  void _showDailyTimesDialog(BuildContext context, SettingsProvider settings) {
-    final times = List<int>.from(settings.settings.dailyReminderTimes);
-    
+  void _showDailyTimesDialog(
+    BuildContext context,
+    CountersProvider counters,
+  ) {
+    final counter = counters.activeCounter;
+    final times = List<int>.from(counter.dailyReminderTimes);
+
     showDialog(
       context: context,
       builder: (context) => StatefulBuilder(
@@ -261,7 +338,8 @@ class SettingsScreen extends StatelessWidget {
                       final hour = time ~/ 60;
                       final minute = time % 60;
                       return ListTile(
-                        title: Text('${hour.toString().padLeft(2, '0')}:${minute.toString().padLeft(2, '0')}'),
+                        title: Text(
+                            '${hour.toString().padLeft(2, '0')}:${minute.toString().padLeft(2, '0')}'),
                         trailing: IconButton(
                           icon: const Icon(Icons.delete),
                           onPressed: () {
@@ -300,7 +378,7 @@ class SettingsScreen extends StatelessWidget {
               ),
               TextButton(
                 onPressed: () async {
-                  await settings.setDailyReminderTimes(times);
+                  await counters.setDailyReminderTimes(counter.id, times);
                   if (context.mounted) {
                     Navigator.pop(context);
                   }
@@ -317,11 +395,13 @@ class SettingsScreen extends StatelessWidget {
 
 class _DailyTargetDialog extends StatefulWidget {
   const _DailyTargetDialog({
-    required this.settings,
+    required this.counters,
+    required this.counterId,
     required this.initialValue,
   });
 
-  final SettingsProvider settings;
+  final CountersProvider counters;
+  final String counterId;
   final int initialValue;
 
   @override
@@ -341,7 +421,7 @@ class _DailyTargetDialogState extends State<_DailyTargetDialog> {
 
   Future<void> _submit() async {
     final value = int.tryParse(_controller.text.trim()) ?? 0;
-    await widget.settings.setDailyTarget(value < 0 ? 0 : value);
+    await widget.counters.setDailyTarget(widget.counterId, value < 0 ? 0 : value);
     if (mounted) {
       Navigator.pop(context);
     }

@@ -12,8 +12,11 @@
 
 ## المميزات
 
-- ✅ عدّاد ذكي مع حفظ تلقائي
-- ✅ تذكيرات محلية متكررة أو في أوقات محددة
+- ✅ عدّادات متعددة للأذكار (جاهزة + مخصصة)
+- ✅ هدف يومي لكل عدّاد مع مؤشر تقدّم
+- ✅ إحصائيات ورسم بياني لآخر ٧/٣٠ يومًا
+- ✅ سلسلة الأيام المتتالية (الستريك)
+- ✅ تذكيرات محلية لكل عدّاد (متكررة أو في أوقات محددة)
 - ✅ واجهة عربية كاملة باتجاه RTL
 - ✅ وضع فاتح وداكن
 - ✅ اهتزاز خفيف عند الضغط
@@ -84,20 +87,23 @@ flutter build ios --release
 lib/
 ├── main.dart                 # نقطة البداية
 ├── models/
-│   ├── counter_data.dart     # نموذج بيانات العداد
+│   ├── adhkar_counter.dart   # نموذج العدّاد (الذكر)
 │   └── app_settings.dart     # نموذج إعدادات التطبيق
 ├── providers/
-│   ├── counter_provider.dart # مدير حالة العداد
+│   ├── counters_provider.dart # مدير حالة العدّادات
 │   └── settings_provider.dart # مدير حالة الإعدادات
 ├── screens/
 │   ├── home_screen.dart      # الشاشة الرئيسية
 │   ├── settings_screen.dart  # شاشة الإعدادات
+│   ├── stats_screen.dart     # شاشة الإحصائيات
 │   └── about_screen.dart     # شاشة حول التطبيق
 ├── services/
 │   ├── storage_service.dart  # خدمة التخزين المحلي
 │   └── notification_service.dart # خدمة الإشعارات
 └── utils/
-    └── app_theme.dart        # ثيم التطبيق
+    ├── app_theme.dart        # ثيم التطبيق
+    ├── app_strings.dart      # النصوص المركزية
+    └── stats.dart            # حسابات الإحصائيات والستريك
 ```
 
 ## الاختبارات

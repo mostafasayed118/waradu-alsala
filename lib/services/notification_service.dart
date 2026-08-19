@@ -1,13 +1,14 @@
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:timezone/timezone.dart' as tz;
 import 'package:timezone/data/latest_all.dart' as tz;
-import '../models/app_settings.dart';
+import '../models/adhkar_counter.dart';
 import '../utils/app_strings.dart';
 
 class NotificationService {
   NotificationService();
 
-  final FlutterLocalNotificationsPlugin _notifications = FlutterLocalNotificationsPlugin();
+  final FlutterLocalNotificationsPlugin _notifications =
+      FlutterLocalNotificationsPlugin();
   bool _initialized = false;
 
   Future<void> init() async {
@@ -21,7 +22,7 @@ class NotificationService {
       requestBadgePermission: false,
       requestSoundPermission: false,
     );
-    
+
     const initSettings = InitializationSettings(
       android: androidSettings,
       iOS: iosSettings,
@@ -38,7 +39,7 @@ class NotificationService {
       final granted = await android.requestNotificationsPermission();
       return granted ?? false;
     }
-    
+
     final ios = _notifications.resolvePlatformSpecificImplementation<
         IOSFlutterLocalNotificationsPlugin>();
     if (ios != null) {
@@ -49,59 +50,60 @@ class NotificationService {
       );
       return granted ?? false;
     }
-    
+
     return true;
   }
 
-  Future<void> scheduleIntervalNotification(int intervalMinutes) async {
+  /// Cancels all scheduled reminders, then schedules each counter whose
+  /// reminders are enabled using a distinct id range
+  /// (`idBase = 100 + index * 100`).
+  Future<void> rescheduleAll(List<AdhkarCounter> counters) async {
     await cancelAllNotifications();
-    
-    if (intervalMinutes <= 0) return;
 
-    final now = tz.TZDateTime.now(tz.local);
-    final scheduledTime = now.add(Duration(minutes: intervalMinutes));
+    for (var i = 0; i < counters.length; i++) {
+      final counter = counters[i];
+      if (!counter.remindersEnabled) continue;
 
-    await _notifications.zonedSchedule(
-      0,
-      AppStrings.notificationTitle,
-      AppStrings.notificationBody,
-      scheduledTime,
-      _details(),
-      androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
-      uiLocalNotificationDateInterpretation: UILocalNotificationDateInterpretation.absoluteTime,
-      matchDateTimeComponents: null,
-    );
-  }
-
-  Future<void> scheduleDailyNotifications(List<int> times) async {
-    await cancelAllNotifications();
-    
-    if (times.isEmpty) return;
-
-    final details = _details();
-
-    for (int i = 0; i < times.length; i++) {
-      final hour = times[i] ~/ 60;
-      final minute = times[i] % 60;
-      
-      await _notifications.zonedSchedule(
-        i,
-        AppStrings.notificationTitle,
-        AppStrings.notificationBody,
-        _nextInstanceOfTime(hour, minute),
-        details,
-        androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
-        uiLocalNotificationDateInterpretation: UILocalNotificationDateInterpretation.absoluteTime,
-        matchDateTimeComponents: DateTimeComponents.time,
-      );
+      final idBase = 100 + i * 100;
+      if (counter.reminderType == ReminderType.interval) {
+        if (counter.reminderIntervalMinutes <= 0) continue;
+        final scheduledTime = tz.TZDateTime.now(tz.local)
+            .add(Duration(minutes: counter.reminderIntervalMinutes));
+        await _notifications.zonedSchedule(
+          idBase,
+          counter.name,
+          AppStrings.reminderBody,
+          scheduledTime,
+          _details(),
+          androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+          uiLocalNotificationDateInterpretation:
+              UILocalNotificationDateInterpretation.absoluteTime,
+          matchDateTimeComponents: null,
+        );
+      } else {
+        for (var j = 0; j < counter.dailyReminderTimes.length; j++) {
+          final time = counter.dailyReminderTimes[j];
+          await _notifications.zonedSchedule(
+            idBase + j,
+            counter.name,
+            AppStrings.reminderBody,
+            _nextInstanceOfTime(time ~/ 60, time % 60),
+            _details(),
+            androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+            uiLocalNotificationDateInterpretation:
+                UILocalNotificationDateInterpretation.absoluteTime,
+            matchDateTimeComponents: DateTimeComponents.time,
+          );
+        }
+      }
     }
   }
 
-  Future<void> showDailyTargetReached() async {
+  Future<void> showDailyTargetReached(String counterName) async {
     await _notifications.show(
       _targetReachedNotificationId,
       AppStrings.targetReachedTitle,
-      AppStrings.targetReachedBody,
+      '${AppStrings.targetReachedBody}: $counterName',
       _details(),
     );
   }
@@ -111,8 +113,8 @@ class NotificationService {
   NotificationDetails _details() => const NotificationDetails(
         android: AndroidNotificationDetails(
           'salawat_reminder',
-          'تذكير بالصلاة على النبي',
-          channelDescription: 'تذكير يومي بالصلاة على النبي ﷺ',
+          'تذكير بالذكر',
+          channelDescription: 'تذكير يومي بالذكر',
           importance: Importance.high,
           priority: Priority.high,
         ),
@@ -125,21 +127,17 @@ class NotificationService {
 
   tz.TZDateTime _nextInstanceOfTime(int hour, int minute) {
     final now = tz.TZDateTime.now(tz.local);
-    var scheduledDate = tz.TZDateTime(tz.local, now.year, now.month, now.day, hour, minute);
-    
+    var scheduledDate =
+        tz.TZDateTime(tz.local, now.year, now.month, now.day, hour, minute);
+
     if (scheduledDate.isBefore(now)) {
       scheduledDate = scheduledDate.add(const Duration(days: 1));
     }
-    
+
     return scheduledDate;
   }
 
   Future<void> cancelAllNotifications() async {
     await _notifications.cancelAll();
-  }
-
-  Future<bool> areNotificationsScheduled() async {
-    final pendingNotifications = await _notifications.pendingNotificationRequests();
-    return pendingNotifications.isNotEmpty;
   }
 }

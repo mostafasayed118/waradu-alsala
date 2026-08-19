@@ -5,6 +5,7 @@ class AppSettings {
   final ReminderType reminderType;
   final int reminderIntervalMinutes;
   final List<int> dailyReminderTimes;
+  final int dailyTarget;
   final bool isDarkMode;
 
   AppSettings({
@@ -14,6 +15,7 @@ class AppSettings {
     this.reminderType = ReminderType.interval,
     this.reminderIntervalMinutes = 60,
     this.dailyReminderTimes = const [],
+    this.dailyTarget = 0,
     this.isDarkMode = false,
   });
 
@@ -24,6 +26,7 @@ class AppSettings {
     ReminderType? reminderType,
     int? reminderIntervalMinutes,
     List<int>? dailyReminderTimes,
+    int? dailyTarget,
     bool? isDarkMode,
   }) {
     return AppSettings(
@@ -33,6 +36,7 @@ class AppSettings {
       reminderType: reminderType ?? this.reminderType,
       reminderIntervalMinutes: reminderIntervalMinutes ?? this.reminderIntervalMinutes,
       dailyReminderTimes: dailyReminderTimes ?? this.dailyReminderTimes,
+      dailyTarget: dailyTarget ?? this.dailyTarget,
       isDarkMode: isDarkMode ?? this.isDarkMode,
     );
   }
@@ -45,6 +49,7 @@ class AppSettings {
       'reminderType': reminderType.index,
       'reminderIntervalMinutes': reminderIntervalMinutes,
       'dailyReminderTimes': dailyReminderTimes,
+      'dailyTarget': dailyTarget,
       'isDarkMode': isDarkMode,
     };
   }
@@ -57,6 +62,7 @@ class AppSettings {
       reminderType: ReminderType.values[json['reminderType'] ?? 0],
       reminderIntervalMinutes: json['reminderIntervalMinutes'] ?? 60,
       dailyReminderTimes: List<int>.from(json['dailyReminderTimes'] ?? []),
+      dailyTarget: json['dailyTarget'] ?? 0,
       isDarkMode: json['isDarkMode'] ?? false,
     );
   }

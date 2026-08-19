@@ -64,6 +64,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
       ),
       body: Consumer2<CounterProvider, SettingsProvider>(
         builder: (context, counter, settings, child) {
+          final target = settings.settings.dailyTarget;
           return Container(
             decoration: BoxDecoration(
               gradient: LinearGradient(
@@ -137,6 +138,34 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                               ),
                             ),
                           ],
+                          if (target > 0) ...[
+                            const SizedBox(height: 12),
+                            Text(
+                              '${counter.currentCount} / $target',
+                              style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                                color: Theme.of(context).colorScheme.secondary,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            LinearProgressIndicator(
+                              value: (counter.currentCount / target)
+                                  .clamp(0.0, 1.0)
+                                  .toDouble(),
+                              minHeight: 8,
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            if (counter.currentCount >= target) ...[
+                              const SizedBox(height: 8),
+                              Text(
+                                'تم الهدف',
+                                style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                                  color: Theme.of(context).colorScheme.secondary,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ],
+                          ],
                         ],
                       ),
                     ),
@@ -151,7 +180,15 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                         if (settings.settings.vibrationEnabled) {
                           HapticFeedback.lightImpact();
                         }
-                        await counter.increment();
+                        final before = counter.currentCount;
+                        await counter.increment(
+                          daily: settings.settings.dailyCounter || target > 0,
+                        );
+                        if (target > 0 &&
+                            before < target &&
+                            counter.currentCount >= target) {
+                          await settings.notifyDailyTargetReached();
+                        }
                       },
                       child: AnimatedBuilder(
                         animation: _scaleAnimation,

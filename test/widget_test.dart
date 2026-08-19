@@ -7,6 +7,7 @@ import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:salawat_app/main.dart';
 import 'package:salawat_app/models/app_settings.dart';
+import 'package:salawat_app/models/counter_data.dart';
 import 'package:salawat_app/providers/counter_provider.dart';
 import 'package:salawat_app/providers/settings_provider.dart';
 import 'package:salawat_app/services/notification_service.dart';
@@ -110,5 +111,46 @@ void main() {
     final notificationsSwitch =
         tester.widget<SwitchListTile>(find.byType(SwitchListTile).first);
     expect(notificationsSwitch.value, isFalse);
+  });
+
+  testWidgets('shows daily target progress', (WidgetTester tester) async {
+    SharedPreferences.setMockInitialValues({
+      'app_settings': jsonEncode(AppSettings(dailyTarget: 100).toJson()),
+      'counter_data':
+          jsonEncode(CounterData(currentCount: 40, totalCount: 40).toJson()),
+    });
+
+    await pumpApp(tester);
+
+    expect(find.text('40 / 100'), findsOneWidget);
+    expect(find.byType(LinearProgressIndicator), findsOneWidget);
+  });
+
+  testWidgets('reaching the daily target fires a notification',
+      (WidgetTester tester) async {
+    SharedPreferences.setMockInitialValues({
+      'app_settings': jsonEncode(
+        AppSettings(notificationsEnabled: true, dailyTarget: 1).toJson(),
+      ),
+      'counter_data':
+          jsonEncode(CounterData(currentCount: 0, totalCount: 0).toJson()),
+    });
+
+    var showedNotification = false;
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(_notificationsChannel, (MethodCall call) async {
+      if (call.method == 'show') {
+        showedNotification = true;
+      }
+      return call.method == 'initialize' ? true : null;
+    });
+
+    await pumpApp(tester);
+
+    await tester.tap(find.text('صَلَّيْتُ عَلَى النَّبِي ﷺ'));
+    await tester.pumpAndSettle();
+
+    expect(showedNotification, isTrue);
+    expect(find.text('تم الهدف'), findsOneWidget);
   });
 }

@@ -81,4 +81,53 @@ void main() {
     expect(result, isTrue);
     expect(provider.settings.notificationsEnabled, isFalse);
   });
+
+  test('setDailyTarget updates the stored setting', () async {
+    final provider = await _buildProvider(permissionGranted: true);
+
+    await provider.setDailyTarget(100);
+
+    expect(provider.settings.dailyTarget, 100);
+  });
+
+  group('notifyDailyTargetReached', () {
+    Future<(SettingsProvider, List<MethodCall>)> buildNotifier({
+      required bool notificationsEnabled,
+    }) async {
+      final calls = <MethodCall>[];
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(_channel, (MethodCall call) async {
+        calls.add(call);
+        return call.method == 'initialize' ? true : null;
+      });
+
+      final notificationService = NotificationService();
+      await notificationService.init();
+
+      final provider = SettingsProvider(
+        _FakeStorageService(
+          AppSettings(notificationsEnabled: notificationsEnabled),
+        ),
+        notificationService,
+      );
+      await provider.load();
+      return (provider, calls);
+    }
+
+    test('fires the notification when enabled', () async {
+      final (provider, calls) = await buildNotifier(notificationsEnabled: true);
+
+      await provider.notifyDailyTargetReached();
+
+      expect(calls.any((c) => c.method == 'show'), isTrue);
+    });
+
+    test('skips the notification when disabled', () async {
+      final (provider, calls) = await buildNotifier(notificationsEnabled: false);
+
+      await provider.notifyDailyTargetReached();
+
+      expect(calls.any((c) => c.method == 'show'), isFalse);
+    });
+  });
 }

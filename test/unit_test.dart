@@ -61,6 +61,7 @@ void main() {
       expect(settings.reminderType, ReminderType.interval);
       expect(settings.reminderIntervalMinutes, 60);
       expect(settings.dailyReminderTimes, isEmpty);
+      expect(settings.dailyTarget, 0);
       expect(settings.isDarkMode, false);
     });
 
@@ -72,6 +73,7 @@ void main() {
         reminderType: ReminderType.daily,
         reminderIntervalMinutes: 30,
         dailyReminderTimes: [480, 720, 1080],
+        dailyTarget: 100,
         isDarkMode: true,
       );
       expect(settings.notificationsEnabled, false);
@@ -80,6 +82,7 @@ void main() {
       expect(settings.reminderType, ReminderType.daily);
       expect(settings.reminderIntervalMinutes, 30);
       expect(settings.dailyReminderTimes, [480, 720, 1080]);
+      expect(settings.dailyTarget, 100);
       expect(settings.isDarkMode, true);
     });
 
@@ -98,6 +101,7 @@ void main() {
         reminderType: ReminderType.daily,
         reminderIntervalMinutes: 30,
         dailyReminderTimes: [480, 720],
+        dailyTarget: 100,
         isDarkMode: true,
       );
       
@@ -108,6 +112,7 @@ void main() {
       expect(json['reminderType'], 1);
       expect(json['reminderIntervalMinutes'], 30);
       expect(json['dailyReminderTimes'], [480, 720]);
+      expect(json['dailyTarget'], 100);
       expect(json['isDarkMode'], true);
       
       final restored = AppSettings.fromJson(json);
@@ -117,6 +122,7 @@ void main() {
       expect(restored.reminderType, ReminderType.daily);
       expect(restored.reminderIntervalMinutes, 30);
       expect(restored.dailyReminderTimes, [480, 720]);
+      expect(restored.dailyTarget, 100);
       expect(restored.isDarkMode, true);
     });
   });

@@ -14,12 +14,18 @@ class CounterProvider with ChangeNotifier {
   int get totalCount => _counterData.totalCount;
   bool get canUndo => _lastCount != null;
 
-  Future<void> load() async {
+  Future<void> load({bool daily = false}) async {
     _counterData = await _storage.getCounterData();
+    if (daily) {
+      await rolloverIfNewDay();
+    }
     notifyListeners();
   }
 
-  Future<void> increment() async {
+  Future<void> increment({bool daily = false}) async {
+    if (daily) {
+      await rolloverIfNewDay();
+    }
     _lastCount = _counterData.currentCount;
     _counterData = _counterData.copyWith(
       currentCount: _counterData.currentCount + 1,
@@ -28,6 +34,27 @@ class CounterProvider with ChangeNotifier {
     );
     await _storage.saveCounterData(_counterData);
     notifyListeners();
+  }
+
+  /// Resets [currentCount] to zero (keeping the total) when the last activity
+  /// happened on a previous day. Returns whether a rollover occurred.
+  Future<bool> rolloverIfNewDay() async {
+    if (!_isNewDay(_counterData.lastUsedAt)) return false;
+    _counterData = _counterData.copyWith(
+      currentCount: 0,
+      lastUsedAt: DateTime.now(),
+      lastResetAt: DateTime.now(),
+    );
+    await _storage.saveCounterData(_counterData);
+    notifyListeners();
+    return true;
+  }
+
+  bool _isNewDay(DateTime lastUsedAt) {
+    final now = DateTime.now();
+    return lastUsedAt.year != now.year ||
+        lastUsedAt.month != now.month ||
+        lastUsedAt.day != now.day;
   }
 
   Future<void> undo() async {

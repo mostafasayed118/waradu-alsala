@@ -47,6 +47,14 @@ class SettingsProvider with ChangeNotifier {
   Future<void> setDailyReminderTimes(List<int> times) =>
       _apply(_settings.copyWith(dailyReminderTimes: times), reschedule: true);
 
+  Future<void> setDailyTarget(int value) =>
+      _apply(_settings.copyWith(dailyTarget: value));
+
+  Future<void> notifyDailyTargetReached() async {
+    if (!_settings.notificationsEnabled) return;
+    await _notificationService.showDailyTargetReached();
+  }
+
   Future<void> _apply(AppSettings next, {bool reschedule = false}) async {
     _settings = next;
     await _storage.saveSettings(_settings);

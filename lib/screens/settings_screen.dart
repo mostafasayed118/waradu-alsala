@@ -96,6 +96,16 @@ class SettingsScreen extends StatelessWidget {
                   await settings.toggleDailyCounter(value);
                 },
               ),
+              ListTile(
+                title: const Text('الهدف اليومي'),
+                subtitle: Text(
+                  settings.settings.dailyTarget > 0
+                      ? '${settings.settings.dailyTarget} مرة'
+                      : 'غير محدد',
+                ),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () => _showDailyTargetDialog(context, settings),
+              ),
               
               const Divider(),
               
@@ -149,6 +159,16 @@ class SettingsScreen extends StatelessWidget {
       final hours = minutes ~/ 60;
       return 'كل $hours ساعة';
     }
+  }
+
+  void _showDailyTargetDialog(BuildContext context, SettingsProvider settings) {
+    showDialog(
+      context: context,
+      builder: (dialogContext) => _DailyTargetDialog(
+        settings: settings,
+        initialValue: settings.settings.dailyTarget,
+      ),
+    );
   }
 
   void _showReminderTypeDialog(BuildContext context, SettingsProvider settings) {
@@ -291,6 +311,80 @@ class SettingsScreen extends StatelessWidget {
           );
         },
       ),
+    );
+  }
+}
+
+class _DailyTargetDialog extends StatefulWidget {
+  const _DailyTargetDialog({
+    required this.settings,
+    required this.initialValue,
+  });
+
+  final SettingsProvider settings;
+  final int initialValue;
+
+  @override
+  State<_DailyTargetDialog> createState() => _DailyTargetDialogState();
+}
+
+class _DailyTargetDialogState extends State<_DailyTargetDialog> {
+  late final TextEditingController _controller = TextEditingController(
+    text: widget.initialValue > 0 ? '${widget.initialValue}' : '',
+  );
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  Future<void> _submit() async {
+    final value = int.tryParse(_controller.text.trim()) ?? 0;
+    await widget.settings.setDailyTarget(value < 0 ? 0 : value);
+    if (mounted) {
+      Navigator.pop(context);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('الهدف اليومي'),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          TextField(
+            controller: _controller,
+            keyboardType: TextInputType.number,
+            decoration: const InputDecoration(
+              labelText: 'عدد المرات',
+            ),
+          ),
+          const SizedBox(height: 16),
+          Wrap(
+            spacing: 8,
+            children: [33, 100, 500, 1000]
+                .map(
+                  (value) => ActionChip(
+                    label: Text('$value'),
+                    onPressed: () => _controller.text = '$value',
+                  ),
+                )
+                .toList(),
+          ),
+        ],
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('إلغاء'),
+        ),
+        TextButton(
+          onPressed: _submit,
+          child: const Text('حفظ'),
+        ),
+      ],
     );
   }
 }

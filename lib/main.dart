@@ -20,12 +20,15 @@ void main() async {
   
   final notificationService = NotificationService();
   await notificationService.init();
-  
+
+  final settings = await storageService.getSettings();
+  final daily = settings.dailyCounter || settings.dailyTarget > 0;
+
   runApp(
     MultiProvider(
       providers: [
         ChangeNotifierProvider(
-          create: (_) => CounterProvider(storageService)..load(),
+          create: (_) => CounterProvider(storageService)..load(daily: daily),
         ),
         ChangeNotifierProvider(
           create: (_) => SettingsProvider(storageService, notificationService)..load(),

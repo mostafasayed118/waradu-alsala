@@ -97,6 +97,17 @@ class NotificationService {
     }
   }
 
+  Future<void> showDailyTargetReached() async {
+    await _notifications.show(
+      _targetReachedNotificationId,
+      AppStrings.targetReachedTitle,
+      AppStrings.targetReachedBody,
+      _details(),
+    );
+  }
+
+  static const int _targetReachedNotificationId = 9999;
+
   NotificationDetails _details() => const NotificationDetails(
         android: AndroidNotificationDetails(
           'salawat_reminder',

@@ -54,4 +54,56 @@ void main() {
       expect(provider.canUndo, isFalse);
     });
   });
+
+  group('CounterProvider daily rollover', () {
+    CounterData yesterdayData(int current, int total) => CounterData(
+          currentCount: current,
+          totalCount: total,
+          lastUsedAt: DateTime.now().subtract(const Duration(days: 1)),
+        );
+
+    test('load(daily: true) resets count when last activity was a previous day',
+        () async {
+      final storage = _FakeStorageService()..stored = yesterdayData(50, 200);
+      final provider = CounterProvider(storage);
+
+      await provider.load(daily: true);
+
+      expect(provider.currentCount, 0);
+      expect(provider.totalCount, 200);
+    });
+
+    test('load(daily: true) keeps count when last activity was today', () async {
+      final storage = _FakeStorageService()
+        ..stored = CounterData(currentCount: 50, totalCount: 200);
+      final provider = CounterProvider(storage);
+
+      await provider.load(daily: true);
+
+      expect(provider.currentCount, 50);
+      expect(provider.totalCount, 200);
+    });
+
+    test('increment(daily: true) rolls over then increments', () async {
+      final storage = _FakeStorageService()..stored = yesterdayData(50, 200);
+      final provider = CounterProvider(storage);
+      await provider.load();
+
+      await provider.increment(daily: true);
+
+      expect(provider.currentCount, 1);
+      expect(provider.totalCount, 201);
+    });
+
+    test('increment(daily: false) does not roll over', () async {
+      final storage = _FakeStorageService()..stored = yesterdayData(50, 200);
+      final provider = CounterProvider(storage);
+      await provider.load();
+
+      await provider.increment();
+
+      expect(provider.currentCount, 51);
+      expect(provider.totalCount, 201);
+    });
+  });
 }

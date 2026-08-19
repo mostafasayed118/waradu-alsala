@@ -2,11 +2,10 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:timezone/timezone.dart' as tz;
 import 'package:timezone/data/latest_all.dart' as tz;
 import '../models/app_settings.dart';
+import '../utils/app_strings.dart';
 
 class NotificationService {
-  static final NotificationService _instance = NotificationService._();
-  factory NotificationService() => _instance;
-  NotificationService._();
+  NotificationService();
 
   final FlutterLocalNotificationsPlugin _notifications = FlutterLocalNotificationsPlugin();
   bool _initialized = false;
@@ -59,34 +58,15 @@ class NotificationService {
     
     if (intervalMinutes <= 0) return;
 
-    const androidDetails = AndroidNotificationDetails(
-      'salawat_reminder',
-      'تذكير بالصلاة على النبي',
-      channelDescription: 'تذكير يومي بالصلاة على النبي ﷺ',
-      importance: Importance.high,
-      priority: Priority.high,
-    );
-    
-    const iosDetails = DarwinNotificationDetails(
-      presentAlert: true,
-      presentBadge: true,
-      presentSound: true,
-    );
-    
-    const details = NotificationDetails(
-      android: androidDetails,
-      iOS: iosDetails,
-    );
-
     final now = tz.TZDateTime.now(tz.local);
     final scheduledTime = now.add(Duration(minutes: intervalMinutes));
 
     await _notifications.zonedSchedule(
       0,
-      'صلِّ على النبي ﷺ',
-      'اللهم صلِّ على سيدنا محمد وعلى آل سيدنا محمد',
+      AppStrings.notificationTitle,
+      AppStrings.notificationBody,
       scheduledTime,
-      details,
+      _details(),
       androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
       uiLocalNotificationDateInterpretation: UILocalNotificationDateInterpretation.absoluteTime,
       matchDateTimeComponents: null,
@@ -98,24 +78,7 @@ class NotificationService {
     
     if (times.isEmpty) return;
 
-    const androidDetails = AndroidNotificationDetails(
-      'salawat_reminder',
-      'تذكير بالصلاة على النبي',
-      channelDescription: 'تذكير يومي بالصلاة على النبي ﷺ',
-      importance: Importance.high,
-      priority: Priority.high,
-    );
-    
-    const iosDetails = DarwinNotificationDetails(
-      presentAlert: true,
-      presentBadge: true,
-      presentSound: true,
-    );
-    
-    const details = NotificationDetails(
-      android: androidDetails,
-      iOS: iosDetails,
-    );
+    final details = _details();
 
     for (int i = 0; i < times.length; i++) {
       final hour = times[i] ~/ 60;
@@ -123,8 +86,8 @@ class NotificationService {
       
       await _notifications.zonedSchedule(
         i,
-        'صلِّ على النبي ﷺ',
-        'اللهم صلِّ على سيدنا محمد وعلى آل سيدنا محمد',
+        AppStrings.notificationTitle,
+        AppStrings.notificationBody,
         _nextInstanceOfTime(hour, minute),
         details,
         androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
@@ -133,6 +96,21 @@ class NotificationService {
       );
     }
   }
+
+  NotificationDetails _details() => const NotificationDetails(
+        android: AndroidNotificationDetails(
+          'salawat_reminder',
+          'تذكير بالصلاة على النبي',
+          channelDescription: 'تذكير يومي بالصلاة على النبي ﷺ',
+          importance: Importance.high,
+          priority: Priority.high,
+        ),
+        iOS: DarwinNotificationDetails(
+          presentAlert: true,
+          presentBadge: true,
+          presentSound: true,
+        ),
+      );
 
   tz.TZDateTime _nextInstanceOfTime(int hour, int minute) {
     final now = tz.TZDateTime.now(tz.local);

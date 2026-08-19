@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../utils/app_strings.dart';
 
 class AboutScreen extends StatelessWidget {
   const AboutScreen({super.key});
@@ -36,7 +37,7 @@ class AboutScreen extends StatelessWidget {
             
             // App Name
             Text(
-              'ورد الصلاة',
+              AppStrings.appName,
               style: Theme.of(context).textTheme.headlineLarge,
             ),
             const SizedBox(height: 8),
@@ -60,7 +61,7 @@ class AboutScreen extends StatelessWidget {
               child: Column(
                 children: [
                   Text(
-                    'اللهم صلِّ على سيدنا محمد وعلى آل سيدنا محمد',
+                    AppStrings.salawat,
                     textAlign: TextAlign.center,
                     style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                       fontFamily: 'Amiri',

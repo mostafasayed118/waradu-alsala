@@ -18,56 +18,41 @@ class SettingsProvider with ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> updateSettings(AppSettings newSettings) async {
-    _settings = newSettings;
-    await _storage.saveSettings(_settings);
-    await _updateNotifications();
-    notifyListeners();
+  Future<bool> toggleNotifications(bool enabled) async {
+    if (enabled) {
+      final granted = await _notificationService.requestPermission();
+      if (!granted) {
+        return false;
+      }
+    }
+    await _apply(_settings.copyWith(notificationsEnabled: enabled), reschedule: true);
+    return true;
   }
 
-  Future<void> toggleNotifications(bool enabled) async {
-    _settings = _settings.copyWith(notificationsEnabled: enabled);
-    await _storage.saveSettings(_settings);
-    await _updateNotifications();
-    notifyListeners();
-  }
+  Future<void> toggleVibration(bool enabled) =>
+      _apply(_settings.copyWith(vibrationEnabled: enabled));
 
-  Future<void> toggleVibration(bool enabled) async {
-    _settings = _settings.copyWith(vibrationEnabled: enabled);
-    await _storage.saveSettings(_settings);
-    notifyListeners();
-  }
+  Future<void> toggleDailyCounter(bool enabled) =>
+      _apply(_settings.copyWith(dailyCounter: enabled));
 
-  Future<void> toggleDailyCounter(bool enabled) async {
-    _settings = _settings.copyWith(dailyCounter: enabled);
-    await _storage.saveSettings(_settings);
-    notifyListeners();
-  }
+  Future<void> toggleDarkMode(bool enabled) =>
+      _apply(_settings.copyWith(isDarkMode: enabled));
 
-  Future<void> toggleDarkMode(bool enabled) async {
-    _settings = _settings.copyWith(isDarkMode: enabled);
-    await _storage.saveSettings(_settings);
-    notifyListeners();
-  }
+  Future<void> setReminderType(ReminderType type) =>
+      _apply(_settings.copyWith(reminderType: type), reschedule: true);
 
-  Future<void> setReminderType(ReminderType type) async {
-    _settings = _settings.copyWith(reminderType: type);
-    await _storage.saveSettings(_settings);
-    await _updateNotifications();
-    notifyListeners();
-  }
+  Future<void> setReminderInterval(int minutes) =>
+      _apply(_settings.copyWith(reminderIntervalMinutes: minutes), reschedule: true);
 
-  Future<void> setReminderInterval(int minutes) async {
-    _settings = _settings.copyWith(reminderIntervalMinutes: minutes);
-    await _storage.saveSettings(_settings);
-    await _updateNotifications();
-    notifyListeners();
-  }
+  Future<void> setDailyReminderTimes(List<int> times) =>
+      _apply(_settings.copyWith(dailyReminderTimes: times), reschedule: true);
 
-  Future<void> setDailyReminderTimes(List<int> times) async {
-    _settings = _settings.copyWith(dailyReminderTimes: times);
+  Future<void> _apply(AppSettings next, {bool reschedule = false}) async {
+    _settings = next;
     await _storage.saveSettings(_settings);
-    await _updateNotifications();
+    if (reschedule) {
+      await _updateNotifications();
+    }
     notifyListeners();
   }
 

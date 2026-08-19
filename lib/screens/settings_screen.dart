@@ -24,7 +24,14 @@ class SettingsScreen extends StatelessWidget {
                 subtitle: const Text('استلام تذكيرات بالصلاة على النبي ﷺ'),
                 value: settings.settings.notificationsEnabled,
                 onChanged: (value) async {
-                  await settings.toggleNotifications(value);
+                  final enabled = await settings.toggleNotifications(value);
+                  if (value && !enabled && context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('لم يتم منح إذن الإشعارات'),
+                      ),
+                    );
+                  }
                 },
               ),
               

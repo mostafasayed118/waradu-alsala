@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import '../providers/counter_provider.dart';
 import '../providers/settings_provider.dart';
+import '../utils/app_strings.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -14,7 +16,6 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateMixin {
   late AnimationController _controller;
   late Animation<double> _scaleAnimation;
-  bool _showResetDialog = false;
 
   @override
   void initState() {
@@ -50,7 +51,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('ورد الصلاة'),
+        title: const Text(AppStrings.appName),
         actions: [
           IconButton(
             icon: const Icon(Icons.settings),
@@ -92,7 +93,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                     
                     // Salawat text
                     Text(
-                      'اللهم صلِّ على سيدنا محمد\nوعلى آل سيدنا محمد',
+                      AppStrings.salawatHome,
                       textAlign: TextAlign.center,
                       style: Theme.of(context).textTheme.headlineLarge?.copyWith(
                         fontFamily: 'Amiri',
@@ -216,7 +217,6 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                         // Reset button
                         ElevatedButton.icon(
                           onPressed: () {
-                            _showResetDialog = true;
                             _showResetConfirmation(context, counter, settings);
                           },
                           icon: const Icon(Icons.refresh),
@@ -231,7 +231,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                     
                     // Stats
                     Text(
-                      'آخر استخدام: ${_formatDateTime(counter.counterData.lastUsedAt)}',
+                      'آخر استخدام: ${DateFormat('dd/MM/yyyy HH:mm').format(counter.counterData.lastUsedAt)}',
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                         color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
                       ),
@@ -264,50 +264,51 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     );
   }
 
-  String _formatDateTime(DateTime dateTime) {
-    return '${dateTime.day}/${dateTime.month}/${dateTime.year} ${dateTime.hour}:${dateTime.minute.toString().padLeft(2, '0')}';
-  }
-
   void _showResetConfirmation(
     BuildContext context,
     CounterProvider counter,
     SettingsProvider settings,
   ) {
+    var includeTotal = false;
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('إعادة تعيين العداد'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Text('هل أنت متأكد من إعادة تعيين العداد؟'),
-            if (settings.settings.dailyCounter) ...[
-              const SizedBox(height: 16),
-              CheckboxListTile(
-                title: const Text('إعادة تعيين العدد التراكمي أيضاً'),
-                value: false,
-                onChanged: (value) {
-                  // Handle reset total option
-                },
-              ),
+      builder: (_) => StatefulBuilder(
+        builder: (dialogContext, setDialogState) => AlertDialog(
+          title: const Text('إعادة تعيين العداد'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text('هل أنت متأكد من إعادة تعيين العداد؟'),
+              if (settings.settings.dailyCounter) ...[
+                const SizedBox(height: 16),
+                CheckboxListTile(
+                  title: const Text('إعادة تعيين العدد التراكمي أيضاً'),
+                  value: includeTotal,
+                  onChanged: (value) {
+                    setDialogState(() {
+                      includeTotal = value ?? false;
+                    });
+                  },
+                ),
+              ],
             ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('إلغاء'),
+            ),
+            TextButton(
+              onPressed: () async {
+                await counter.reset(includeTotal: includeTotal);
+                if (dialogContext.mounted) {
+                  Navigator.pop(dialogContext);
+                }
+              },
+              child: const Text('تأكيد', style: TextStyle(color: Colors.red)),
+            ),
           ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('إلغاء'),
-          ),
-          TextButton(
-            onPressed: () async {
-              await counter.reset();
-              if (mounted) {
-                Navigator.pop(context);
-              }
-            },
-            child: const Text('تأكيد', style: TextStyle(color: Colors.red)),
-          ),
-        ],
       ),
     );
   }

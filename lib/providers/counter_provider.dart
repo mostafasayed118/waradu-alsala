@@ -32,7 +32,7 @@ class CounterProvider with ChangeNotifier {
 
   Future<void> undo() async {
     if (_lastCount == null) return;
-    
+
     _counterData = _counterData.copyWith(
       currentCount: _lastCount!,
       lastUsedAt: DateTime.now(),
@@ -42,22 +42,10 @@ class CounterProvider with ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> reset() async {
-    _counterData = CounterData(
+  Future<void> reset({bool includeTotal = false}) async {
+    _counterData = _counterData.copyWith(
       currentCount: 0,
-      totalCount: _counterData.totalCount,
-      lastUsedAt: DateTime.now(),
-      lastResetAt: DateTime.now(),
-    );
-    _lastCount = null;
-    await _storage.saveCounterData(_counterData);
-    notifyListeners();
-  }
-
-  Future<void> resetTotal() async {
-    _counterData = CounterData(
-      currentCount: _counterData.currentCount,
-      totalCount: 0,
+      totalCount: includeTotal ? 0 : _counterData.totalCount,
       lastUsedAt: DateTime.now(),
       lastResetAt: DateTime.now(),
     );

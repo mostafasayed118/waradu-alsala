@@ -9,6 +9,7 @@ import 'screens/home_screen.dart';
 import 'screens/settings_screen.dart';
 import 'screens/about_screen.dart';
 import 'utils/app_theme.dart';
+import 'utils/app_strings.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -43,7 +44,7 @@ class MyApp extends StatelessWidget {
     return Consumer<SettingsProvider>(
       builder: (context, settings, child) {
         return MaterialApp(
-          title: 'ورد الصلاة',
+          title: AppStrings.appName,
           debugShowCheckedModeBanner: false,
           
           // RTL support

@@ -7,6 +7,7 @@ class StorageService {
   static const String _countersKey = 'adhkar_counters';
   static const String _settingsKey = 'app_settings';
   static const String _legacyCounterKey = 'counter_data';
+  static const String _activeCounterIdKey = 'active_counter_id';
 
   late SharedPreferences _prefs;
 
@@ -104,6 +105,19 @@ class StorageService {
   Future<void> saveSettings(AppSettings settings) async {
     final jsonString = json.encode(settings.toJson());
     await _prefs.setString(_settingsKey, jsonString);
+  }
+
+  // Active counter
+  Future<String?> getActiveCounterId() async {
+    return _prefs.getString(_activeCounterIdKey);
+  }
+
+  Future<void> saveActiveCounterId(String? id) async {
+    if (id == null) {
+      await _prefs.remove(_activeCounterIdKey);
+    } else {
+      await _prefs.setString(_activeCounterIdKey, id);
+    }
   }
 
   // Clear all data

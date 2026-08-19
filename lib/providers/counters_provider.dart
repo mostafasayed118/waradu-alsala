@@ -29,17 +29,23 @@ class CountersProvider with ChangeNotifier {
 
   Future<void> load() async {
     _counters = List.of(await _storage.getCounters());
-    if (_activeId.isEmpty || !_counters.any((c) => c.id == _activeId)) {
+    final stored = await _storage.getActiveCounterId();
+    if (stored != null &&
+        stored.isNotEmpty &&
+        _counters.any((c) => c.id == stored)) {
+      _activeId = stored;
+    } else if (_activeId.isEmpty || !_counters.any((c) => c.id == _activeId)) {
       _activeId = _counters.isEmpty ? '' : _counters.first.id;
     }
     await _rolloverAll();
     notifyListeners();
   }
 
-  void setActive(String id) {
+  Future<void> setActive(String id) async {
     if (_activeId == id) return;
     _activeId = id;
     _lastCount = null;
+    await _storage.saveActiveCounterId(id);
     notifyListeners();
   }
 
@@ -64,7 +70,11 @@ class CountersProvider with ChangeNotifier {
     final active = activeCounter;
     _replace(
       active.id,
-      active.copyWith(currentCount: _lastCount!, lastUsedAt: DateTime.now()),
+      active.copyWith(
+        currentCount: _lastCount!,
+        totalCount: active.totalCount > 0 ? active.totalCount - 1 : 0,
+        lastUsedAt: DateTime.now(),
+      ),
     );
     _lastCount = null;
     await _persist();
@@ -96,6 +106,7 @@ class CountersProvider with ChangeNotifier {
     _activeId = counter.id;
     _lastCount = null;
     await _persist();
+    await _storage.saveActiveCounterId(counter.id);
     notifyListeners();
   }
 
@@ -108,6 +119,8 @@ class CountersProvider with ChangeNotifier {
     _counters = List.of(_counters)..removeAt(index);
     if (_activeId == id) {
       _activeId = _counters.isEmpty ? '' : _counters.first.id;
+      await _storage.saveActiveCounterId(
+          _counters.isEmpty ? null : _activeId);
     }
     _lastCount = null;
     await _persist();

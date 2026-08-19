@@ -55,4 +55,22 @@ void main() {
     expect(counters.first.currentCount, 0);
     expect(counters.first.history, isEmpty);
   });
+
+  test('active counter id round-trips through storage', () async {
+    SharedPreferences.setMockInitialValues({});
+
+    final storage = StorageService();
+    await storage.init();
+
+    expect(await storage.getActiveCounterId(), isNull);
+
+    await storage.saveActiveCounterId('tasbih');
+    expect(await storage.getActiveCounterId(), 'tasbih');
+
+    await storage.saveActiveCounterId('salawat');
+    expect(await storage.getActiveCounterId(), 'salawat');
+
+    await storage.saveActiveCounterId(null);
+    expect(await storage.getActiveCounterId(), isNull);
+  });
 }

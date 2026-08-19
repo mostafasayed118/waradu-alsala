@@ -9,6 +9,7 @@ class _FakeStorageService extends StorageService {
   _FakeStorageService(this.stored);
 
   List<AdhkarCounter> stored;
+  String? activeId;
 
   @override
   Future<List<AdhkarCounter>> getCounters() async => stored;
@@ -16,6 +17,14 @@ class _FakeStorageService extends StorageService {
   @override
   Future<void> saveCounters(List<AdhkarCounter> counters) async {
     stored = counters;
+  }
+
+  @override
+  Future<String?> getActiveCounterId() async => activeId;
+
+  @override
+  Future<void> saveActiveCounterId(String? id) async {
+    activeId = id;
   }
 }
 
@@ -80,7 +89,7 @@ void main() {
     final provider = CountersProvider(storage, _FakeNotificationService());
     await provider.load();
 
-    provider.setActive('b');
+    await provider.setActive('b');
 
     expect(provider.activeCounter.id, 'b');
   });
@@ -146,6 +155,23 @@ void main() {
     expect(provider.canUndo, isFalse);
   });
 
+  test('undo decrements the lifetime total back', () async {
+    final storage = _FakeStorageService([
+      _counter('a', name: 'A', currentCount: 5, totalCount: 100),
+    ]);
+    final provider = CountersProvider(storage, _FakeNotificationService());
+    await provider.load();
+
+    await provider.increment();
+    expect(provider.activeCounter.currentCount, 6);
+    expect(provider.activeCounter.totalCount, 101);
+
+    await provider.undo();
+
+    expect(provider.activeCounter.currentCount, 5);
+    expect(provider.activeCounter.totalCount, 100);
+  });
+
   test('reset zeroes current but keeps total', () async {
     final storage = _FakeStorageService([
       _counter('a', name: 'A', currentCount: 42, totalCount: 100),
@@ -200,7 +226,7 @@ void main() {
     ]);
     final provider = CountersProvider(storage, _FakeNotificationService());
     await provider.load();
-    provider.setActive('a');
+    await provider.setActive('a');
 
     await provider.deleteCounter('a');
 
@@ -243,5 +269,65 @@ void main() {
     await provider.notifyDailyTargetReached();
 
     expect(notif.targetReachedNames, ['سبحان الله']);
+  });
+
+  test('setActive persists the active counter id', () async {
+    final storage = _FakeStorageService([
+      _counter('a', name: 'A'),
+      _counter('b', name: 'B'),
+    ]);
+    final provider = CountersProvider(storage, _FakeNotificationService());
+    await provider.load();
+
+    await provider.setActive('b');
+
+    expect(storage.activeId, 'b');
+  });
+
+  test('load restores the persisted active counter id', () async {
+    final storage = _FakeStorageService([
+      _counter('a', name: 'A'),
+      _counter('b', name: 'B'),
+    ]);
+    storage.activeId = 'b';
+    final provider = CountersProvider(storage, _FakeNotificationService());
+
+    await provider.load();
+
+    expect(provider.activeCounter.id, 'b');
+  });
+
+  test('load falls back to the first counter when the persisted id is stale',
+      () async {
+    final storage = _FakeStorageService([
+      _counter('a', name: 'A'),
+      _counter('b', name: 'B'),
+    ]);
+    storage.activeId = 'gone';
+    final provider = CountersProvider(storage, _FakeNotificationService());
+
+    await provider.load();
+
+    expect(provider.activeCounter.id, 'a');
+  });
+
+  test('rolloverIfNewDay archives a previous-day count', () async {
+    final yesterday = DateTime.now().subtract(const Duration(days: 1));
+    final storage = _FakeStorageService([
+      _counter(
+        'a',
+        name: 'A',
+        currentCount: 30,
+        totalCount: 200,
+        lastUsedAt: yesterday,
+      ),
+    ]);
+    final provider = CountersProvider(storage, _FakeNotificationService());
+    await provider.load();
+
+    await provider.rolloverIfNewDay();
+
+    expect(provider.activeCounter.currentCount, 0);
+    expect(provider.activeCounter.history[dailyKey(yesterday)], 30);
   });
 }

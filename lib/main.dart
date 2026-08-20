@@ -8,10 +8,10 @@ import 'services/notification_service.dart';
 import 'services/backup_service.dart';
 import 'screens/home_screen.dart';
 import 'screens/settings_screen.dart';
-import 'screens/about_screen.dart';
 import 'screens/stats_screen.dart';
 import 'utils/app_theme.dart';
 import 'utils/app_strings.dart';
+import 'widgets/decorative_app_shell.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -95,14 +95,14 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
           darkTheme: AppTheme.darkTheme(),
           themeMode: settings.isDarkMode ? ThemeMode.dark : ThemeMode.light,
 
-          // Routes
-          initialRoute: '/',
-          routes: {
-            '/': (context) => const HomeScreen(),
-            '/settings': (context) => const SettingsScreen(),
-            '/about': (context) => const AboutScreen(),
-            '/stats': (context) => const StatsScreen(),
-          },
+          // Decorative shell with 3-tab navigation
+          home: const DecorativeAppShell(
+            screens: [
+              HomeScreen(),
+              StatsScreen(),
+              SettingsScreen(),
+            ],
+          ),
         );
       },
     );

@@ -13,158 +13,160 @@ import '../providers/settings_provider.dart';
 import '../services/backup_service.dart';
 import '../services/notification_service.dart';
 import '../utils/app_strings.dart';
+import '../utils/app_text_styles.dart';
 import '../utils/stats.dart';
+import '../widgets/gold_divider.dart';
+import 'about_screen.dart';
 
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('الإعدادات'),
-      ),
-      body: Consumer2<CountersProvider, SettingsProvider>(
-        builder: (context, counters, settings, child) {
-          final counter = counters.activeCounter;
-          return ListView(
-            padding: const EdgeInsets.all(16),
-            children: [
-              // Active counter section
-              _buildSectionTitle(context, 'العداد الحالي'),
-              ListTile(
-                leading: const Icon(Icons.edit),
-                title: const Text('الاسم'),
-                subtitle: Text(counter.name),
-                trailing: const Icon(Icons.chevron_right),
-                onTap: () => _showRenameDialog(context, counters),
+    return Consumer2<CountersProvider, SettingsProvider>(
+      builder: (context, counters, settings, child) {
+        final counter = counters.activeCounter;
+        return ListView(
+          padding: const EdgeInsets.all(16),
+          children: [
+            // Active counter section
+            _buildSectionTitle(context, 'العداد الحالي'),
+            ListTile(
+              leading: _medallionIcon(context, Icons.edit),
+              title: const Text('الاسم'),
+              subtitle: Text(counter.name),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: () => _showRenameDialog(context, counters),
+            ),
+            ListTile(
+              leading: _medallionIcon(context, Icons.flag),
+              title: const Text('الهدف اليومي'),
+              subtitle: Text(
+                counter.dailyTarget > 0
+                    ? '${counter.dailyTarget} مرة'
+                    : 'غير محدد',
               ),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: () => _showDailyTargetDialog(context, counters),
+            ),
+            SwitchListTile(
+              secondary: _medallionIcon(context, Icons.notifications_active),
+              title: const Text('التذكيرات'),
+              subtitle: const Text('استلام تذكيرات لهذا الذكر'),
+              value: counter.remindersEnabled,
+              activeColor: Theme.of(context).colorScheme.primary,
+              onChanged: (value) async {
+                final enabled =
+                    await counters.setRemindersEnabled(counter.id, value);
+                if (value && !enabled && context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('لم يتم منح إذن الإشعارات'),
+                    ),
+                  );
+                }
+              },
+            ),
+
+            if (counter.remindersEnabled) ...[
               ListTile(
-                leading: const Icon(Icons.flag),
-                title: const Text('الهدف اليومي'),
+                title: const Text('نوع التذكير'),
                 subtitle: Text(
-                  counter.dailyTarget > 0
-                      ? '${counter.dailyTarget} مرة'
-                      : 'غير محدد',
+                  counter.reminderType == ReminderType.interval
+                      ? 'تذكير متكرر كل مدة محددة'
+                      : 'تذكير في أوقات يومية',
                 ),
                 trailing: const Icon(Icons.chevron_right),
-                onTap: () => _showDailyTargetDialog(context, counters),
+                onTap: () => _showReminderTypeDialog(context, counters),
               ),
-              SwitchListTile(
-                secondary: const Icon(Icons.notifications_active),
-                title: const Text('التذكيرات'),
-                subtitle: const Text('استلام تذكيرات لهذا الذكر'),
-                value: counter.remindersEnabled,
-                onChanged: (value) async {
-                  final enabled =
-                      await counters.setRemindersEnabled(counter.id, value);
-                  if (value && !enabled && context.mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('لم يتم منح إذن الإشعارات'),
-                      ),
-                    );
-                  }
-                },
-              ),
-
-              if (counter.remindersEnabled) ...[
+              if (counter.reminderType == ReminderType.interval)
                 ListTile(
-                  title: const Text('نوع التذكير'),
+                  title: const Text('فاصل التذكير'),
+                  subtitle:
+                      Text(_getIntervalText(counter.reminderIntervalMinutes)),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: () => _showIntervalDialog(context, counters),
+                ),
+              if (counter.reminderType == ReminderType.daily)
+                ListTile(
+                  title: const Text('أوقات التذكير اليومية'),
                   subtitle: Text(
-                    counter.reminderType == ReminderType.interval
-                        ? 'تذكير متكرر كل مدة محددة'
-                        : 'تذكير في أوقات يومية',
+                    counter.dailyReminderTimes.isEmpty
+                        ? 'لم يتم تحديد أوقات'
+                        : '${counter.dailyReminderTimes.length} أوقات محددة',
                   ),
                   trailing: const Icon(Icons.chevron_right),
-                  onTap: () => _showReminderTypeDialog(context, counters),
+                  onTap: () => _showDailyTimesDialog(context, counters),
                 ),
-                if (counter.reminderType == ReminderType.interval)
-                  ListTile(
-                    title: const Text('فاصل التذكير'),
-                    subtitle: Text(_getIntervalText(counter.reminderIntervalMinutes)),
-                    trailing: const Icon(Icons.chevron_right),
-                    onTap: () => _showIntervalDialog(context, counters),
-                  ),
-                if (counter.reminderType == ReminderType.daily)
-                  ListTile(
-                    title: const Text('أوقات التذكير اليومية'),
-                    subtitle: Text(
-                      counter.dailyReminderTimes.isEmpty
-                          ? 'لم يتم تحديد أوقات'
-                          : '${counter.dailyReminderTimes.length} أوقات محددة',
-                    ),
-                    trailing: const Icon(Icons.chevron_right),
-                    onTap: () => _showDailyTimesDialog(context, counters),
-                  ),
-              ],
-              if (counters.counters.length > 1)
-                ListTile(
-                  leading: const Icon(Icons.delete, color: Colors.red),
-                  title: const Text(
-                    'حذف العداد',
-                    style: TextStyle(color: Colors.red),
-                  ),
-                  onTap: () => _showDeleteDialog(context, counters),
-                ),
-
-              const Divider(),
-
-              // Vibration section
-              _buildSectionTitle(context, 'الاستجابة'),
-              SwitchListTile(
-                secondary: const Icon(Icons.vibration),
-                title: const Text('الاهتزاز'),
-                subtitle: const Text('اهتزاز خفيف عند الضغط على زر العدد'),
-                value: settings.settings.vibrationEnabled,
-                onChanged: (value) async {
-                  await settings.toggleVibration(value);
-                },
-              ),
-
-              const Divider(),
-
-              // Appearance section
-              _buildSectionTitle(context, 'المظهر'),
-              SwitchListTile(
-                secondary: const Icon(Icons.dark_mode),
-                title: const Text('الوضع الداكن'),
-                subtitle: const Text('استخدام ألوان داكنة للتطبيق'),
-                value: settings.settings.isDarkMode,
-                onChanged: (value) async {
-                  await settings.toggleDarkMode(value);
-                },
-              ),
-
-              const Divider(),
-
-              // Backup section
-              _buildSectionTitle(context, AppStrings.backupSectionTitle),
-              ListTile(
-                leading: const Icon(Icons.ios_share),
-                title: const Text(AppStrings.exportData),
-                trailing: const Icon(Icons.chevron_right),
-                onTap: () => _showExportSheet(context),
-              ),
-              ListTile(
-                leading: const Icon(Icons.restore),
-                title: const Text(AppStrings.restoreBackup),
-                onTap: () => _showRestoreFlow(context),
-              ),
-
-              // About
-              ListTile(
-                leading: const Icon(Icons.info),
-                title: const Text('حول التطبيق'),
-                trailing: const Icon(Icons.chevron_right),
-                onTap: () {
-                  Navigator.pushNamed(context, '/about');
-                },
-              ),
             ],
-          );
-        },
-      ),
+            if (counters.counters.length > 1)
+              ListTile(
+                leading: _medallionIcon(context, Icons.delete,
+                    iconColor: Colors.red),
+                title: const Text(
+                  'حذف العداد',
+                  style: TextStyle(color: Colors.red),
+                ),
+                onTap: () => _showDeleteDialog(context, counters),
+              ),
+
+            // Vibration section
+            _buildSectionTitle(context, 'الاستجابة'),
+            SwitchListTile(
+              secondary: _medallionIcon(context, Icons.vibration),
+              title: const Text('الاهتزاز'),
+              subtitle: const Text('اهتزاز خفيف عند الضغط على زر العدد'),
+              value: settings.settings.vibrationEnabled,
+              activeColor: Theme.of(context).colorScheme.primary,
+              onChanged: (value) async {
+                await settings.toggleVibration(value);
+              },
+            ),
+
+            // Appearance section
+            _buildSectionTitle(context, 'المظهر'),
+            SwitchListTile(
+              secondary: _medallionIcon(context, Icons.dark_mode),
+              title: const Text('الوضع الداكن'),
+              subtitle: const Text('استخدام ألوان داكنة للتطبيق'),
+              value: settings.settings.isDarkMode,
+              activeColor: Theme.of(context).colorScheme.primary,
+              onChanged: (value) async {
+                await settings.toggleDarkMode(value);
+              },
+            ),
+
+            // Backup section
+            _buildSectionTitle(context, AppStrings.backupSectionTitle),
+            ListTile(
+              leading: _medallionIcon(context, Icons.ios_share),
+              title: const Text(AppStrings.exportData),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: () => _showExportSheet(context),
+            ),
+            ListTile(
+              leading: _medallionIcon(context, Icons.restore),
+              title: const Text(AppStrings.restoreBackup),
+              onTap: () => _showRestoreFlow(context),
+            ),
+
+            // About — pushed as a full screen, not a shell tab
+            ListTile(
+              leading: _medallionIcon(context, Icons.info),
+              title: const Text('حول التطبيق'),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => const AboutScreen(),
+                  ),
+                );
+              },
+            ),
+          ],
+        );
+      },
     );
   }
 
@@ -287,15 +289,29 @@ class SettingsScreen extends StatelessWidget {
   }
 
   Widget _buildSectionTitle(BuildContext context, String title) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8),
-      child: Text(
-        title,
-        style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-            ),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const SizedBox(height: 8),
+        Text(title, style: AppTextStyles.display(context)),
+        const GoldHairlineDivider(indent: 0),
+      ],
+    );
+  }
+
+  Widget _medallionIcon(BuildContext context, IconData icon,
+      {Color? iconColor}) {
+    final gold = Theme.of(context).colorScheme.secondary;
+    return Container(
+      width: 40,
+      height: 40,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        border: Border.all(color: gold, width: 1.2),
+        color: Theme.of(context).colorScheme.primary.withOpacity(0.06),
       ),
+      child: Icon(icon,
+          color: iconColor ?? Theme.of(context).colorScheme.primary, size: 20),
     );
   }
 

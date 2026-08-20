@@ -218,14 +218,14 @@ void main() {
       );
       expect(
         csv,
-        contains('"custom-1","ذكر، مع ""علامات""",120,33,true,daily,60,"480;1020"'),
+        contains('"custom-1","ذكر، مع ""علامات""","120","33","true","daily","60","480;1020"'),
       );
       expect(
         csv,
         contains('"counterId","counterName","date","count"'),
       );
-      expect(csv, contains('"custom-1","ذكر، مع ""علامات""","2026-08-19",33'));
-      expect(csv, contains('"custom-1","ذكر، مع ""علامات""","2026-08-20",7'));
+      expect(csv, contains('"custom-1","ذكر، مع ""علامات""","2026-08-19","33"'));
+      expect(csv, contains('"custom-1","ذكر، مع ""علامات""","2026-08-20","7"'));
     });
 
     test('uses interval word and skips zero-count history entries', () async {
@@ -243,7 +243,7 @@ void main() {
 
       final csv = await service.buildCsv();
 
-      expect(csv, contains(',false,interval,60,'));
+      expect(csv, contains(',"false","interval","60",'));
       expect(csv, isNot(contains('"2026-08-19",0')));
     });
 

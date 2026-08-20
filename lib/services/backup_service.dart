@@ -115,11 +115,11 @@ class BackupService {
       buffer.writeln([
         _csvField(c.id),
         _csvField(c.name),
-        '${c.totalCount}',
-        '${c.dailyTarget}',
-        '${c.remindersEnabled}',
-        c.reminderType == ReminderType.interval ? 'interval' : 'daily',
-        '${c.reminderIntervalMinutes}',
+        _csvField('${c.totalCount}'),
+        _csvField('${c.dailyTarget}'),
+        _csvField('${c.remindersEnabled}'),
+        _csvField(c.reminderType == ReminderType.interval ? 'interval' : 'daily'),
+        _csvField('${c.reminderIntervalMinutes}'),
         _csvField(c.dailyReminderTimes.join(';')),
         _csvField(c.lastUsedAt.toIso8601String()),
         _csvField(c.lastResetAt?.toIso8601String() ?? ''),
@@ -134,7 +134,7 @@ class BackupService {
           _csvField(c.id),
           _csvField(c.name),
           _csvField(date),
-          '$count',
+          _csvField('$count'),
         ].join(','));
       });
     }

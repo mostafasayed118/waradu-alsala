@@ -47,7 +47,12 @@ class BackupService {
     if (settingsJson is! Map<String, dynamic>) {
       throw const BackupException(BackupErrorCode.invalidFormat);
     }
-    final settings = AppSettings.fromJson(settingsJson);
+    final AppSettings settings;
+    try {
+      settings = AppSettings.fromJson(settingsJson);
+    } catch (_) {
+      throw const BackupException(BackupErrorCode.invalidFormat);
+    }
 
     final countersJson = decoded['counters'];
     if (countersJson is! List || countersJson.isEmpty) {
@@ -69,7 +74,13 @@ class BackupService {
           throw const BackupException(BackupErrorCode.invalidFormat);
         }
       }
-      counters.add(AdhkarCounter.fromJson(entry));
+      final AdhkarCounter counter;
+      try {
+        counter = AdhkarCounter.fromJson(entry);
+      } catch (_) {
+        throw const BackupException(BackupErrorCode.invalidFormat);
+      }
+      counters.add(counter);
     }
 
     final activeId = decoded['activeCounterId'];
@@ -82,6 +93,12 @@ class BackupService {
       settings: settings,
       activeCounterId: activeCounterId,
     );
+  }
+
+  Future<void> applyBackup(BackupData data) async {
+    await _storage.saveCounters(data.counters);
+    await _storage.saveSettings(data.settings);
+    await _storage.saveActiveCounterId(data.activeCounterId);
   }
 
   Future<String> buildJsonBackup() async {

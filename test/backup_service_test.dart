@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:salawat_app/models/adhkar_counter.dart';
+import 'package:salawat_app/models/app_settings.dart';
 import 'package:salawat_app/services/backup_service.dart';
 import 'package:salawat_app/services/storage_service.dart';
 
@@ -134,6 +135,17 @@ void main() {
       final data = service.parseJsonBackup(validJson());
       expect(data.activeCounterId, 'salawat');
     });
+
+    test('rejects out-of-range reminderType with invalidFormat', () async {
+      final service = await serviceWith({});
+      final bad = AdhkarCounter(id: 'a', name: 'x').toJson()
+        ..['reminderType'] = 3;
+      expect(
+        () => service.parseJsonBackup(validJson(counters: [bad])),
+        throwsA(isA<BackupException>()
+            .having((e) => e.code, 'code', BackupErrorCode.invalidFormat)),
+      );
+    });
   });
 
   group('buildJsonBackup', () {
@@ -257,6 +269,40 @@ void main() {
       final csv = await service.buildCsv();
 
       expect(csv, contains(',""\n'));
+    });
+  });
+
+  group('applyBackup', () {
+    test('replaces counters, settings, and active id in storage', () async {
+      final storage = await storageWith({
+        'adhkar_counters': jsonEncode(
+            [AdhkarCounter(id: 'old', name: 'قديم', totalCount: 5).toJson()]),
+        'app_settings': jsonEncode({'vibrationEnabled': true, 'isDarkMode': false}),
+        'active_counter_id': 'old',
+      });
+      final service = BackupService(storage: storage);
+
+      final incoming = AdhkarCounter(
+        id: 'salawat',
+        name: 'الصلاة على النبي ﷺ',
+        totalCount: 99,
+        history: {'2026-08-20': 7},
+      );
+      await service.applyBackup(BackupData(
+        counters: [incoming],
+        settings: AppSettings(vibrationEnabled: false, isDarkMode: true),
+        activeCounterId: 'salawat',
+      ));
+
+      final counters = await storage.getCounters();
+      expect(counters, hasLength(1));
+      expect(counters.single.id, 'salawat');
+      expect(counters.single.totalCount, 99);
+      expect(counters.single.history, {'2026-08-20': 7});
+      final settings = await storage.getSettings();
+      expect(settings.vibrationEnabled, isFalse);
+      expect(settings.isDarkMode, isTrue);
+      expect(await storage.getActiveCounterId(), 'salawat');
     });
   });
 }

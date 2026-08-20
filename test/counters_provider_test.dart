@@ -330,4 +330,26 @@ void main() {
     expect(provider.activeCounter.currentCount, 0);
     expect(provider.activeCounter.history[dailyKey(yesterday)], 30);
   });
+
+  test('rolloverIfNewDay clears the undo buffer', () async {
+    final yesterday = DateTime.now().subtract(const Duration(days: 1));
+    final storage = _FakeStorageService([
+      _counter(
+        'a',
+        name: 'A',
+        currentCount: 30,
+        totalCount: 200,
+        lastUsedAt: yesterday,
+      ),
+    ]);
+    final provider = CountersProvider(storage, _FakeNotificationService());
+    await provider.load();
+
+    await provider.increment();
+    expect(provider.canUndo, isTrue);
+
+    await provider.rolloverIfNewDay();
+
+    expect(provider.canUndo, isFalse);
+  });
 }

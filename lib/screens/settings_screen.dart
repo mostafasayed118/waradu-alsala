@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -208,6 +209,7 @@ class SettingsScreen extends StatelessWidget {
       await Share.shareXFiles(
         [XFile(file.path, mimeType: isCsv ? 'text/csv' : 'application/json')],
       );
+      unawaited(file.delete());
     } catch (_) {
       messenger.showSnackBar(
         const SnackBar(content: Text(AppStrings.errorExportFailed)),
@@ -271,7 +273,6 @@ class SettingsScreen extends StatelessWidget {
       await backup.applyBackup(data);
       await counters.load();
       await settings.load();
-      await notifications.rescheduleAll(counters.counters);
       messenger.showSnackBar(
         const SnackBar(content: Text(AppStrings.restoreSuccess)),
       );
@@ -280,6 +281,9 @@ class SettingsScreen extends StatelessWidget {
         const SnackBar(content: Text(AppStrings.errorRestoreFailed)),
       );
     }
+    try {
+      await notifications.rescheduleAll(counters.counters);
+    } catch (_) {}
   }
 
   Widget _buildSectionTitle(BuildContext context, String title) {

@@ -226,8 +226,50 @@ void main() {
     expect(saved.single['currentCount'], 99);
   });
 
+  testWidgets('restore accepts a UTF-8-BOM-prefixed backup file',
+      (WidgetTester tester) async {
+    FilePicker.platform =
+        _FakeFilePicker(pickerResult('\uFEFF${backupJson()}'));
+    tester.view.physicalSize = const Size(800, 1600);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+
+    await pumpApp(tester);
+    await openSettings(tester);
+
+    await tester.ensureVisible(find.text('استعادة نسخة احتياطية'));
+    await tester.tap(find.text('استعادة نسخة احتياطية'));
+    await tester.pumpAndSettle();
+
+    expect(
+      find.text('سيتم استبدال جميع البيانات الحالية. هل أنت متأكد؟'),
+      findsOneWidget,
+    );
+
+    await tester.tap(find.text('إلغاء'));
+    await tester.pumpAndSettle();
+  });
+
   testWidgets('cancelling the confirm dialog leaves data untouched',
       (WidgetTester tester) async {
+    SharedPreferences.setMockInitialValues({
+      'adhkar_counters': jsonEncode([
+        {
+          'id': 'old',
+          'name': 'قديم',
+          'currentCount': 5,
+          'totalCount': 5,
+          'dailyTarget': 0,
+          'history': <String, int>{},
+          'lastUsedAt': DateTime.now().toIso8601String(),
+          'lastResetAt': null,
+          'remindersEnabled': false,
+          'reminderType': 0,
+          'reminderIntervalMinutes': 60,
+          'dailyReminderTimes': <int>[],
+        },
+      ]),
+    });
     FilePicker.platform = _FakeFilePicker(pickerResult(backupJson()));
     tester.view.physicalSize = const Size(800, 1600);
     tester.view.devicePixelRatio = 1.0;
@@ -245,8 +287,8 @@ void main() {
     expect(find.text('تمت الاستعادة بنجاح'), findsNothing);
     final prefs = await SharedPreferences.getInstance();
     final saved = jsonDecode(prefs.getString('adhkar_counters')!) as List;
-    expect(saved, hasLength(5));
-    expect(saved.first['id'], 'salawat');
+    expect(saved, hasLength(1));
+    expect(saved.single['id'], 'old');
   });
 
   testWidgets('invalid backup file shows an error and no dialog',

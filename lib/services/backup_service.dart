@@ -74,6 +74,10 @@ class BackupService {
           throw const BackupException(BackupErrorCode.invalidFormat);
         }
       }
+      final history = entry['history'];
+      if (history != null && history is! Map) {
+        throw const BackupException(BackupErrorCode.invalidFormat);
+      }
       final AdhkarCounter counter;
       try {
         counter = AdhkarCounter.fromJson(entry);

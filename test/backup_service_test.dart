@@ -109,6 +109,17 @@ void main() {
       );
     });
 
+    test('rejects non-Map history with invalidFormat', () async {
+      final service = await serviceWith({});
+      final bad = AdhkarCounter(id: 'a', name: 'x').toJson()
+        ..['history'] = 'corrupt';
+      expect(
+        () => service.parseJsonBackup(validJson(counters: [bad])),
+        throwsA(isA<BackupException>()
+            .having((e) => e.code, 'code', BackupErrorCode.invalidFormat)),
+      );
+    });
+
     test('rejects missing settings with invalidFormat', () async {
       final service = await serviceWith({});
       final noSettings =

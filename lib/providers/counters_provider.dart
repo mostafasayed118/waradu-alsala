@@ -209,6 +209,7 @@ class CountersProvider with ChangeNotifier {
         changed = true;
       }
     }
+    _lastCount = null;
     if (changed) {
       await _persist();
     }

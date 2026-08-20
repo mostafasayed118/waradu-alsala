@@ -1,8 +1,17 @@
+import 'dart:convert';
+import 'dart:io';
+
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:provider/provider.dart';
+import 'package:share_plus/share_plus.dart';
 import '../models/adhkar_counter.dart';
 import '../providers/counters_provider.dart';
 import '../providers/settings_provider.dart';
+import '../services/backup_service.dart';
+import '../utils/app_strings.dart';
+import '../utils/stats.dart';
 
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key});
@@ -127,6 +136,20 @@ class SettingsScreen extends StatelessWidget {
 
               const Divider(),
 
+              // Backup section
+              _buildSectionTitle(context, AppStrings.backupSectionTitle),
+              ListTile(
+                leading: const Icon(Icons.ios_share),
+                title: const Text(AppStrings.exportData),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () => _showExportSheet(context),
+              ),
+              ListTile(
+                leading: const Icon(Icons.restore),
+                title: const Text(AppStrings.restoreBackup),
+                onTap: () => _showRestoreFlow(context),
+              ),
+
               // About
               ListTile(
                 leading: const Icon(Icons.info),
@@ -140,6 +163,60 @@ class SettingsScreen extends StatelessWidget {
           );
         },
       ),
+    );
+  }
+
+  void _showExportSheet(BuildContext context) {
+    showModalBottomSheet<void>(
+      context: context,
+      builder: (sheetContext) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.description),
+              title: const Text(AppStrings.exportJsonOption),
+              onTap: () {
+                Navigator.pop(sheetContext);
+                _exportData(context, isCsv: false);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.table_chart),
+              title: const Text(AppStrings.exportCsvOption),
+              onTap: () {
+                Navigator.pop(sheetContext);
+                _exportData(context, isCsv: true);
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _exportData(BuildContext context, {required bool isCsv}) async {
+    final backup = context.read<BackupService>();
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      final content =
+          isCsv ? await backup.buildCsv() : await backup.buildJsonBackup();
+      final dir = await getTemporaryDirectory();
+      final name = 'zikr-backup-${dailyKey(DateTime.now())}.${isCsv ? 'csv' : 'json'}';
+      final file = File('${dir.path}/$name')..writeAsStringSync(content);
+      await Share.shareXFiles(
+        [XFile(file.path, mimeType: isCsv ? 'text/csv' : 'application/json')],
+      );
+    } catch (_) {
+      messenger.showSnackBar(
+        const SnackBar(content: Text(AppStrings.errorExportFailed)),
+      );
+    }
+  }
+
+  Future<void> _showRestoreFlow(BuildContext context) async {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text(AppStrings.errorReadFileFailed)),
     );
   }
 

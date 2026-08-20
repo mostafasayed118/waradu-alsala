@@ -5,6 +5,7 @@ import 'providers/counters_provider.dart';
 import 'providers/settings_provider.dart';
 import 'services/storage_service.dart';
 import 'services/notification_service.dart';
+import 'services/backup_service.dart';
 import 'screens/home_screen.dart';
 import 'screens/settings_screen.dart';
 import 'screens/about_screen.dart';
@@ -31,6 +32,10 @@ void main() async {
         ),
         ChangeNotifierProvider(
           create: (_) => SettingsProvider(storageService)..load(),
+        ),
+        Provider<NotificationService>.value(value: notificationService),
+        Provider<BackupService>.value(
+          value: BackupService(storage: storageService),
         ),
       ],
       child: const MyApp(),

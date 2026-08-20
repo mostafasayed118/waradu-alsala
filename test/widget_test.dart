@@ -8,6 +8,7 @@ import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:salawat_app/main.dart';
 import 'package:salawat_app/models/adhkar_counter.dart';
+import 'package:salawat_app/services/backup_service.dart';
 import 'package:salawat_app/providers/counters_provider.dart';
 import 'package:salawat_app/providers/settings_provider.dart';
 import 'package:salawat_app/services/notification_service.dart';
@@ -41,6 +42,10 @@ Future<void> pumpApp(
         ),
         ChangeNotifierProvider(
           create: (_) => SettingsProvider(storageService)..load(),
+        ),
+        Provider<NotificationService>.value(value: notif),
+        Provider<BackupService>.value(
+          value: BackupService(storage: storageService),
         ),
       ],
       child: const MyApp(),
@@ -214,5 +219,19 @@ void main() {
     expect(find.text('أفضل يوم'), findsOneWidget);
     expect(find.text('السلسلة الحالية'), findsOneWidget);
     expect(find.text('أطول سلسلة'), findsOneWidget);
+  });
+
+  testWidgets('app exposes BackupService and NotificationService providers',
+      (WidgetTester tester) async {
+    await pumpApp(tester);
+
+    expect(
+      tester.element(find.byType(MyApp)).read<BackupService>(),
+      isA<BackupService>(),
+    );
+    expect(
+      tester.element(find.byType(MyApp)).read<NotificationService>(),
+      isA<NotificationService>(),
+    );
   });
 }

@@ -160,7 +160,7 @@ void main() {
     await pumpApp(tester);
 
     expect(find.text('40 / 100'), findsOneWidget);
-    expect(find.byType(LinearProgressIndicator), findsOneWidget);
+    expect(find.byType(LinearProgressIndicator), findsNothing);
   });
 
   testWidgets('reaching the daily target fires a notification',

@@ -189,4 +189,74 @@ void main() {
       expect(data.activeCounterId, 'salawat');
     });
   });
+
+  group('buildCsv', () {
+    test('produces BOM, headers, quoted fields, and history rows', () async {
+      final counter = AdhkarCounter(
+        id: 'custom-1',
+        name: 'ذكر، مع "علامات"',
+        totalCount: 120,
+        dailyTarget: 33,
+        remindersEnabled: true,
+        reminderType: ReminderType.daily,
+        reminderIntervalMinutes: 60,
+        dailyReminderTimes: [480, 1020],
+        history: {'2026-08-19': 33, '2026-08-20': 7},
+      );
+      final storage = await storageWith({
+        'adhkar_counters': jsonEncode([counter.toJson()]),
+      });
+      final service = BackupService(storage: storage);
+
+      final csv = await service.buildCsv();
+
+      expect(csv.startsWith('\uFEFF'), isTrue);
+      expect(
+        csv,
+        contains(
+            '"id","name","totalCount","dailyTarget","remindersEnabled","reminderType","reminderIntervalMinutes","dailyReminderTimes","lastUsedAt","lastResetAt"'),
+      );
+      expect(
+        csv,
+        contains('"custom-1","ذكر، مع ""علامات""",120,33,true,daily,60,"480;1020"'),
+      );
+      expect(
+        csv,
+        contains('"counterId","counterName","date","count"'),
+      );
+      expect(csv, contains('"custom-1","ذكر، مع ""علامات""","2026-08-19",33'));
+      expect(csv, contains('"custom-1","ذكر، مع ""علامات""","2026-08-20",7'));
+    });
+
+    test('uses interval word and skips zero-count history entries', () async {
+      final counter = AdhkarCounter(
+        id: 'salawat',
+        name: 'الصلاة على النبي ﷺ',
+        remindersEnabled: false,
+        reminderType: ReminderType.interval,
+        history: {'2026-08-19': 0},
+      );
+      final storage = await storageWith({
+        'adhkar_counters': jsonEncode([counter.toJson()]),
+      });
+      final service = BackupService(storage: storage);
+
+      final csv = await service.buildCsv();
+
+      expect(csv, contains(',false,interval,60,'));
+      expect(csv, isNot(contains('"2026-08-19",0')));
+    });
+
+    test('leaves lastResetAt empty when null', () async {
+      final storage = await storageWith({
+        'adhkar_counters': jsonEncode(
+            [AdhkarCounter(id: 'a', name: 'x').toJson()]),
+      });
+      final service = BackupService(storage: storage);
+
+      final csv = await service.buildCsv();
+
+      expect(csv, contains(',""\n'));
+    });
+  });
 }

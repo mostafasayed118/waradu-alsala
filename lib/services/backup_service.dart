@@ -101,4 +101,46 @@ class BackupService {
     };
     return const JsonEncoder.withIndent('  ').convert(map);
   }
+
+  static const String _csvCountersHeader =
+      '"id","name","totalCount","dailyTarget","remindersEnabled","reminderType","reminderIntervalMinutes","dailyReminderTimes","lastUsedAt","lastResetAt"';
+  static const String _csvHistoryHeader =
+      '"counterId","counterName","date","count"';
+
+  Future<String> buildCsv() async {
+    final counters = await _storage.getCounters();
+    final buffer = StringBuffer('\uFEFF');
+    buffer.writeln(_csvCountersHeader);
+    for (final c in counters) {
+      buffer.writeln([
+        _csvField(c.id),
+        _csvField(c.name),
+        '${c.totalCount}',
+        '${c.dailyTarget}',
+        '${c.remindersEnabled}',
+        c.reminderType == ReminderType.interval ? 'interval' : 'daily',
+        '${c.reminderIntervalMinutes}',
+        _csvField(c.dailyReminderTimes.join(';')),
+        _csvField(c.lastUsedAt.toIso8601String()),
+        _csvField(c.lastResetAt?.toIso8601String() ?? ''),
+      ].join(','));
+    }
+    buffer.writeln();
+    buffer.writeln(_csvHistoryHeader);
+    for (final c in counters) {
+      c.history.forEach((date, count) {
+        if (count <= 0) return;
+        buffer.writeln([
+          _csvField(c.id),
+          _csvField(c.name),
+          _csvField(date),
+          '$count',
+        ].join(','));
+      });
+    }
+    return buffer.toString();
+  }
+
+  static String _csvField(String value) =>
+      '"${value.replaceAll('"', '""')}"';
 }

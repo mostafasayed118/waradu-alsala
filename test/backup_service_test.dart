@@ -135,4 +135,58 @@ void main() {
       expect(data.activeCounterId, 'salawat');
     });
   });
+
+  group('buildJsonBackup', () {
+    test('round-trips counters, history, settings, and active id', () async {
+      final counter = AdhkarCounter(
+        id: 'custom-1',
+        name: 'ذكر، مع "علامات"',
+        currentCount: 7,
+        totalCount: 120,
+        dailyTarget: 33,
+        history: {'2026-08-19': 33, '2026-08-20': 7},
+        remindersEnabled: true,
+        reminderType: ReminderType.daily,
+        dailyReminderTimes: [480, 1020],
+      );
+      final storage = await storageWith({
+        'adhkar_counters':
+            jsonEncode([counter.toJson(), AdhkarCounter(id: 'salawat', name: 'الصلاة على النبي ﷺ').toJson()]),
+        'app_settings': jsonEncode({'vibrationEnabled': false, 'isDarkMode': true}),
+        'active_counter_id': 'custom-1',
+      });
+      final service = BackupService(storage: storage);
+
+      final data = service.parseJsonBackup(await service.buildJsonBackup());
+
+      expect(data.counters, hasLength(2));
+      final restored = data.counters.first;
+      expect(restored.id, 'custom-1');
+      expect(restored.name, 'ذكر، مع "علامات"');
+      expect(restored.currentCount, 7);
+      expect(restored.totalCount, 120);
+      expect(restored.dailyTarget, 33);
+      expect(restored.history, {'2026-08-19': 33, '2026-08-20': 7});
+      expect(restored.remindersEnabled, isTrue);
+      expect(restored.reminderType, ReminderType.daily);
+      expect(restored.dailyReminderTimes, [480, 1020]);
+      expect(data.settings.vibrationEnabled, isFalse);
+      expect(data.settings.isDarkMode, isTrue);
+      expect(data.activeCounterId, 'custom-1');
+    });
+
+    test('resolves active id to first counter when stored id is unknown',
+        () async {
+      final storage = await storageWith({
+        'adhkar_counters': jsonEncode(
+            [AdhkarCounter(id: 'salawat', name: 'الصلاة على النبي ﷺ').toJson()]),
+        'active_counter_id': 'ghost',
+      });
+      final service = BackupService(storage: storage);
+
+      final data = service.parseJsonBackup(await service.buildJsonBackup());
+
+      expect(data.activeCounterId, 'salawat');
+    });
+  });
 }

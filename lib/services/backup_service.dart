@@ -83,4 +83,22 @@ class BackupService {
       activeCounterId: activeCounterId,
     );
   }
+
+  Future<String> buildJsonBackup() async {
+    final counters = await _storage.getCounters();
+    final settings = await _storage.getSettings();
+    final storedActiveId = await _storage.getActiveCounterId();
+    final activeCounterId =
+        storedActiveId != null && counters.any((c) => c.id == storedActiveId)
+            ? storedActiveId
+            : (counters.isEmpty ? '' : counters.first.id);
+    final map = <String, dynamic>{
+      'version': _backupVersion,
+      'exportedAt': DateTime.now().toUtc().toIso8601String(),
+      'activeCounterId': activeCounterId,
+      'settings': settings.toJson(),
+      'counters': counters.map((c) => c.toJson()).toList(),
+    };
+    return const JsonEncoder.withIndent('  ').convert(map);
+  }
 }

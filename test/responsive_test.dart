@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:salawat_app/utils/app_text_styles.dart';
 import 'package:salawat_app/utils/breakpoints.dart';
 
 void main() {
@@ -44,5 +45,38 @@ void main() {
     expect(box.constraints.maxWidth, 200);
     expect(find.byType(Center), findsOneWidget);
     expect(tester.takeException(), isNull);
+  });
+
+  group('AppTextStyles width scaling', () {
+    /// Pumps a MaterialApp whose body captures the kufiNumber style for the
+    /// current view size, returns its fontSize.
+    Future<double> kufiFontSize(WidgetTester tester, Size size) async {
+      tester.view.physicalSize = size;
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
+      double? fontSize;
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Builder(
+            builder: (context) {
+              fontSize = AppTextStyles.kufiNumber(context).fontSize;
+              return const SizedBox.shrink();
+            },
+          ),
+        ),
+      );
+      await tester.pump();
+      return fontSize!;
+    }
+
+    testWidgets('kufiNumber scales up from compact to wide', (tester) async {
+      final compact = await kufiFontSize(tester, const Size(360, 640));
+      final wide = await kufiFontSize(tester, const Size(1200, 800));
+
+      expect(compact, lessThan(wide));
+      // compact factor 0.82 of 88 ≈ 72.16; wide factor 1.18 of 88 ≈ 103.84
+      expect(compact, closeTo(72.16, 0.5));
+      expect(wide, closeTo(103.84, 0.5));
+    });
   });
 }

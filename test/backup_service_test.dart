@@ -244,7 +244,7 @@ void main() {
       final csv = await service.buildCsv();
 
       expect(csv, contains(',"false","interval","60",'));
-      expect(csv, isNot(contains('"2026-08-19",0')));
+      expect(csv, isNot(contains('"2026-08-19","0"')));
     });
 
     test('leaves lastResetAt empty when null', () async {

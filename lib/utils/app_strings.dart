@@ -1,3 +1,5 @@
+import '../services/backup_service.dart';
+
 class AppStrings {
   AppStrings._();
 
@@ -22,4 +24,15 @@ class AppStrings {
   static const String errorExportFailed = 'تعذر تصدير البيانات';
   static const String errorRestoreFailed = 'تعذرت الاستعادة';
   static const String errorReadFileFailed = 'تعذر قراءة الملف';
+
+  static String backupErrorMessage(BackupErrorCode code) {
+    switch (code) {
+      case BackupErrorCode.invalidFormat:
+        return errorInvalidFormat;
+      case BackupErrorCode.versionMismatch:
+        return errorVersionMismatch;
+      case BackupErrorCode.emptyBackup:
+        return errorEmptyBackup;
+    }
+  }
 }

@@ -10,6 +10,7 @@ import '../models/adhkar_counter.dart';
 import '../providers/counters_provider.dart';
 import '../providers/settings_provider.dart';
 import '../services/backup_service.dart';
+import '../services/notification_service.dart';
 import '../utils/app_strings.dart';
 import '../utils/stats.dart';
 
@@ -215,9 +216,70 @@ class SettingsScreen extends StatelessWidget {
   }
 
   Future<void> _showRestoreFlow(BuildContext context) async {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text(AppStrings.errorReadFileFailed)),
+    final backup = context.read<BackupService>();
+    final counters = context.read<CountersProvider>();
+    final settings = context.read<SettingsProvider>();
+    final notifications = context.read<NotificationService>();
+    final messenger = ScaffoldMessenger.of(context);
+
+    final picked = await FilePicker.platform.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: ['json'],
+      withData: true,
     );
+    if (picked == null || picked.files.isEmpty) return;
+
+    final BackupData data;
+    try {
+      data = backup.parseJsonBackup(utf8.decode(picked.files.single.bytes!));
+    } on BackupException catch (e) {
+      messenger.showSnackBar(
+        SnackBar(content: Text(AppStrings.backupErrorMessage(e.code))),
+      );
+      return;
+    } catch (_) {
+      messenger.showSnackBar(
+        const SnackBar(content: Text(AppStrings.errorReadFileFailed)),
+      );
+      return;
+    }
+
+    if (!context.mounted) return;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text(AppStrings.restoreBackup),
+        content: const Text(AppStrings.restoreConfirmBody),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('إلغاء'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text(
+              'استعادة',
+              style: TextStyle(color: Colors.red),
+            ),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !context.mounted) return;
+
+    try {
+      await backup.applyBackup(data);
+      await counters.load();
+      await settings.load();
+      await notifications.rescheduleAll(counters.counters);
+      messenger.showSnackBar(
+        const SnackBar(content: Text(AppStrings.restoreSuccess)),
+      );
+    } catch (_) {
+      messenger.showSnackBar(
+        const SnackBar(content: Text(AppStrings.errorRestoreFailed)),
+      );
+    }
   }
 
   Widget _buildSectionTitle(BuildContext context, String title) {

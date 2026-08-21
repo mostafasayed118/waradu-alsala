@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:salawat_app/models/adhkar_counter.dart';
+import 'package:salawat_app/domain/entities/adhkar_counter.dart';
 
 void main() {
   group('AdhkarCounter', () {

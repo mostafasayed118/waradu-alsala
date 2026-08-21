@@ -2,8 +2,8 @@ import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:salawat_app/models/adhkar_counter.dart';
-import 'package:salawat_app/services/storage_service.dart';
+import 'package:salawat_app/domain/entities/adhkar_counter.dart';
+import 'package:salawat_app/data/storage_service.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();

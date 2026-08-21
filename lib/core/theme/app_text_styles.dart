@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'breakpoints.dart';
+import 'package:salawat_app/core/utils/breakpoints.dart';
 
 class AppTextStyles {
   AppTextStyles._();

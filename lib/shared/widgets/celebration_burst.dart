@@ -1,7 +1,7 @@
 import 'dart:math';
 
 import 'package:flutter/material.dart';
-import 'islamic_pattern.dart' show khatamStarPath;
+import 'package:salawat_app/shared/widgets/islamic_pattern.dart' show khatamStarPath;
 
 /// A transient burst of gold Khatam stars celebrating a reached target.
 /// Fires once, animates for ~1.8s, then reports [onDone] so the parent can

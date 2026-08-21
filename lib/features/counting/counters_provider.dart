@@ -1,10 +1,10 @@
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';
-import '../models/adhkar_counter.dart';
-import '../services/notification_service.dart';
-import '../services/storage_service.dart';
-import '../utils/rollover.dart';
+import 'package:salawat_app/domain/entities/adhkar_counter.dart';
+import 'package:salawat_app/data/notifications/notification_service.dart';
+import 'package:salawat_app/data/storage_service.dart';
+import 'package:salawat_app/domain/services/rollover.dart';
 
 class CountersProvider with ChangeNotifier {
   final StorageService _storage;

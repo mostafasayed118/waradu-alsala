@@ -2,10 +2,10 @@ import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:salawat_app/models/adhkar_counter.dart';
-import 'package:salawat_app/models/app_settings.dart';
-import 'package:salawat_app/services/backup_service.dart';
-import 'package:salawat_app/services/storage_service.dart';
+import 'package:salawat_app/domain/entities/adhkar_counter.dart';
+import 'package:salawat_app/domain/entities/app_settings.dart';
+import 'package:salawat_app/data/backup_service.dart';
+import 'package:salawat_app/data/storage_service.dart';
 
 void main() {
   Future<StorageService> storageWith(Map<String, Object> values) async {

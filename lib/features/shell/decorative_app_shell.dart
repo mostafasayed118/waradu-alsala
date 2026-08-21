@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
-import '../utils/app_localizations.dart';
-import '../utils/app_strings.dart';
-import '../utils/app_text_styles.dart';
-import 'gold_divider.dart';
-import 'islamic_pattern.dart';
+import 'package:salawat_app/core/l10n/app_localizations.dart';
+import 'package:salawat_app/core/l10n/app_strings.dart';
+import 'package:salawat_app/core/theme/app_text_styles.dart';
+import 'package:salawat_app/shared/widgets/gold_divider.dart';
+import 'package:salawat_app/shared/widgets/islamic_pattern.dart';
 
 /// Lets descendant screens (e.g. the adhkar library) switch tabs without
 /// touching Navigator: `ShellTabController.of(context)?.notifier.value = 0;`

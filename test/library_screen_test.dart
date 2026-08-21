@@ -3,12 +3,12 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:salawat_app/providers/counters_provider.dart';
-import 'package:salawat_app/screens/home_screen.dart';
-import 'package:salawat_app/screens/library_screen.dart';
-import 'package:salawat_app/services/notification_service.dart';
-import 'package:salawat_app/services/storage_service.dart';
-import 'package:salawat_app/widgets/decorative_app_shell.dart';
+import 'package:salawat_app/features/counting/counters_provider.dart';
+import 'package:salawat_app/features/counting/screens/home_screen.dart';
+import 'package:salawat_app/features/library/library_screen.dart';
+import 'package:salawat_app/data/notifications/notification_service.dart';
+import 'package:salawat_app/data/storage_service.dart';
+import 'package:salawat_app/features/shell/decorative_app_shell.dart';
 
 class _FakeNotificationService extends NotificationService {}
 

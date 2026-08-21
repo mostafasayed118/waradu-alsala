@@ -1,7 +1,7 @@
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:salawat_app/models/adhkar_counter.dart';
-import 'package:salawat_app/services/widget_sync_service.dart';
+import 'package:salawat_app/domain/entities/adhkar_counter.dart';
+import 'package:salawat_app/data/widget/widget_sync_service.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();

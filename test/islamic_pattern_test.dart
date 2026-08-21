@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:salawat_app/widgets/islamic_pattern.dart';
+import 'package:salawat_app/shared/widgets/islamic_pattern.dart';
 
 void main() {
   testWidgets('IslamicPattern renders without error', (tester) async {

@@ -1,5 +1,5 @@
-import '../models/adhkar_counter.dart';
-import 'stats.dart';
+import 'package:salawat_app/domain/entities/adhkar_counter.dart';
+import 'package:salawat_app/domain/services/stats_calculator.dart';
 
 /// Archives a previous day's count into history and resets the daily count
 /// when [counter] was last used before [now]'s day. Returns the counter

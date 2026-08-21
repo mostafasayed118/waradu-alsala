@@ -1,7 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:salawat_app/models/app_settings.dart';
-import 'package:salawat_app/providers/settings_provider.dart';
-import 'package:salawat_app/services/storage_service.dart';
+import 'package:salawat_app/domain/entities/app_settings.dart';
+import 'package:salawat_app/features/settings/settings_provider.dart';
+import 'package:salawat_app/data/storage_service.dart';
 
 class _FakeStorageService extends StorageService {
   _FakeStorageService(this.stored);

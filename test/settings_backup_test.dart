@@ -9,12 +9,12 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:salawat_app/main.dart';
-import 'package:salawat_app/providers/counters_provider.dart';
-import 'package:salawat_app/providers/settings_provider.dart';
-import 'package:salawat_app/services/backup_service.dart';
+import 'package:salawat_app/features/counting/counters_provider.dart';
+import 'package:salawat_app/features/settings/settings_provider.dart';
+import 'package:salawat_app/data/backup_service.dart';
 import 'package:share_plus/share_plus.dart';
-import 'package:salawat_app/services/notification_service.dart';
-import 'package:salawat_app/services/storage_service.dart';
+import 'package:salawat_app/data/notifications/notification_service.dart';
+import 'package:salawat_app/data/storage_service.dart';
 
 const MethodChannel _notificationsChannel =
     MethodChannel('dexterous.com/flutter/local_notifications');

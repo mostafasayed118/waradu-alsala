@@ -1,6 +1,6 @@
 import 'package:flutter/foundation.dart';
-import '../models/app_settings.dart';
-import '../services/storage_service.dart';
+import 'package:salawat_app/domain/entities/app_settings.dart';
+import 'package:salawat_app/data/storage_service.dart';
 
 class SettingsProvider with ChangeNotifier {
   final StorageService _storage;

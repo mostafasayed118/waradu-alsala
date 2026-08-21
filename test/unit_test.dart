@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:salawat_app/models/app_settings.dart';
+import 'package:salawat_app/domain/entities/app_settings.dart';
 
 void main() {
   group('AppSettings', () {

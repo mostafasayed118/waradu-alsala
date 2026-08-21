@@ -1,7 +1,7 @@
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
-import '../models/adhkar_counter.dart';
-import '../models/app_settings.dart';
+import 'package:salawat_app/domain/entities/adhkar_counter.dart';
+import 'package:salawat_app/domain/entities/app_settings.dart';
 
 class StorageService {
   static const String _countersKey = 'adhkar_counters';

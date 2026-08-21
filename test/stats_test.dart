@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:salawat_app/utils/stats.dart';
+import 'package:salawat_app/domain/services/stats_calculator.dart';
 
 void main() {
   test('dailyKey formats as yyyy-MM-dd', () {

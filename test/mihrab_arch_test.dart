@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:salawat_app/widgets/mihrab_arch.dart';
+import 'package:salawat_app/shared/widgets/mihrab_arch.dart';
 
 void main() {
   testWidgets('MihrabArch renders its child and outline', (tester) async {

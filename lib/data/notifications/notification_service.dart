@@ -2,10 +2,10 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:timezone/timezone.dart' as tz;
 import 'package:timezone/data/latest_all.dart' as tz;
 
-import '../models/adhkar_counter.dart';
-import '../models/app_settings.dart';
-import '../utils/app_strings.dart';
-import '../utils/prayer_schedule.dart';
+import 'package:salawat_app/domain/entities/adhkar_counter.dart';
+import 'package:salawat_app/domain/entities/app_settings.dart';
+import 'package:salawat_app/core/l10n/app_strings.dart';
+import 'package:salawat_app/data/notifications/prayer_schedule.dart';
 
 class NotificationService {
   NotificationService();

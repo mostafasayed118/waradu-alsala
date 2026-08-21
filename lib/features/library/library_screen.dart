@@ -1,14 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import '../data/adhkar_library.dart';
-import '../models/dhikr_item.dart';
-import '../providers/counters_provider.dart';
-import '../utils/app_localizations.dart';
-import '../utils/app_text_styles.dart';
-import '../utils/breakpoints.dart';
-import '../widgets/decorative_app_shell.dart';
-import '../widgets/gold_divider.dart';
+import 'package:salawat_app/features/library/adhkar_library.dart';
+import 'package:salawat_app/domain/entities/dhikr_item.dart';
+import 'package:salawat_app/features/counting/counters_provider.dart';
+import 'package:salawat_app/core/l10n/app_localizations.dart';
+import 'package:salawat_app/core/theme/app_text_styles.dart';
+import 'package:salawat_app/core/utils/breakpoints.dart';
+import 'package:salawat_app/shared/widgets/max_width_box.dart';
+import 'package:salawat_app/features/shell/decorative_app_shell.dart';
+import 'package:salawat_app/shared/widgets/gold_divider.dart';
 
 class LibraryScreen extends StatelessWidget {
   const LibraryScreen({super.key});

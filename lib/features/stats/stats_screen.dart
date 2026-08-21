@@ -1,13 +1,13 @@
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../providers/counters_provider.dart';
-import '../utils/app_localizations.dart';
-import '../utils/app_text_styles.dart';
-import '../utils/breakpoints.dart';
-import '../utils/stats.dart';
-import '../widgets/gold_divider.dart';
-import '../widgets/islamic_pattern.dart';
+import 'package:salawat_app/features/counting/counters_provider.dart';
+import 'package:salawat_app/core/l10n/app_localizations.dart';
+import 'package:salawat_app/core/theme/app_text_styles.dart';
+import 'package:salawat_app/core/utils/breakpoints.dart';
+import 'package:salawat_app/domain/services/stats_calculator.dart';
+import 'package:salawat_app/shared/widgets/gold_divider.dart';
+import 'package:salawat_app/shared/widgets/islamic_pattern.dart';
 
 class StatsScreen extends StatefulWidget {
   const StatsScreen({super.key});

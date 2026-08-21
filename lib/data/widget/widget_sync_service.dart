@@ -2,9 +2,9 @@ import 'dart:async';
 
 import 'package:home_widget/home_widget.dart';
 
-import '../models/adhkar_counter.dart';
-import '../utils/rollover.dart';
-import 'storage_service.dart';
+import 'package:salawat_app/domain/entities/adhkar_counter.dart';
+import 'package:salawat_app/domain/services/rollover.dart';
+import 'package:salawat_app/data/storage_service.dart';
 
 /// Keeps the Android home-screen widget in sync with the active counter.
 class WidgetSyncService {

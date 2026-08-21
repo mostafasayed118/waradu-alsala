@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
-import '../utils/app_strings.dart';
-import '../utils/app_text_styles.dart';
-import '../utils/breakpoints.dart';
-import '../widgets/gold_divider.dart';
-import '../widgets/islamic_pattern.dart';
-import '../widgets/mihrab_arch.dart';
+import 'package:salawat_app/core/l10n/app_strings.dart';
+import 'package:salawat_app/core/theme/app_text_styles.dart';
+import 'package:salawat_app/core/utils/breakpoints.dart';
+import 'package:salawat_app/shared/widgets/max_width_box.dart';
+import 'package:salawat_app/shared/widgets/gold_divider.dart';
+import 'package:salawat_app/shared/widgets/islamic_pattern.dart';
+import 'package:salawat_app/shared/widgets/mihrab_arch.dart';
 
 class AboutScreen extends StatelessWidget {
   const AboutScreen({super.key});

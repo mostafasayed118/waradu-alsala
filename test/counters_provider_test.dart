@@ -1,10 +1,10 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:salawat_app/models/adhkar_counter.dart';
-import 'package:salawat_app/models/app_settings.dart';
-import 'package:salawat_app/providers/counters_provider.dart';
-import 'package:salawat_app/services/notification_service.dart';
-import 'package:salawat_app/services/storage_service.dart';
-import 'package:salawat_app/utils/stats.dart';
+import 'package:salawat_app/domain/entities/adhkar_counter.dart';
+import 'package:salawat_app/domain/entities/app_settings.dart';
+import 'package:salawat_app/features/counting/counters_provider.dart';
+import 'package:salawat_app/data/notifications/notification_service.dart';
+import 'package:salawat_app/data/storage_service.dart';
+import 'package:salawat_app/domain/services/stats_calculator.dart';
 
 class _FakeStorageService extends StorageService {
   _FakeStorageService(this.stored);

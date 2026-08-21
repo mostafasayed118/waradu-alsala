@@ -1,4 +1,4 @@
-import '../models/dhikr_item.dart';
+import 'package:salawat_app/domain/entities/dhikr_item.dart';
 
 /// Curated adhkar with authentic texts (from the established sunnah adhkar
 /// collections). Grouped by category; ids are stable so they can be referenced

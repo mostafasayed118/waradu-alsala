@@ -8,14 +8,14 @@ import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:salawat_app/main.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:salawat_app/models/adhkar_counter.dart';
-import 'package:salawat_app/models/app_settings.dart';
-import 'package:salawat_app/services/backup_service.dart';
-import 'package:salawat_app/widgets/celebration_burst.dart';
-import 'package:salawat_app/providers/counters_provider.dart';
-import 'package:salawat_app/providers/settings_provider.dart';
-import 'package:salawat_app/services/notification_service.dart';
-import 'package:salawat_app/services/storage_service.dart';
+import 'package:salawat_app/domain/entities/adhkar_counter.dart';
+import 'package:salawat_app/domain/entities/app_settings.dart';
+import 'package:salawat_app/data/backup_service.dart';
+import 'package:salawat_app/shared/widgets/celebration_burst.dart';
+import 'package:salawat_app/features/counting/counters_provider.dart';
+import 'package:salawat_app/features/settings/settings_provider.dart';
+import 'package:salawat_app/data/notifications/notification_service.dart';
+import 'package:salawat_app/data/storage_service.dart';
 
 const MethodChannel _notificationsChannel =
     MethodChannel('dexterous.com/flutter/local_notifications');

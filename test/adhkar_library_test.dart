@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:salawat_app/data/adhkar_library.dart';
+import 'package:salawat_app/features/library/adhkar_library.dart';
 
 void main() {
   test('every dhikr entry has a unique id and non-empty text', () {

@@ -1,4 +1,4 @@
-import '../services/backup_service.dart';
+import 'package:salawat_app/data/backup_service.dart';
 
 class AppStrings {
   AppStrings._();

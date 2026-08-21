@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:salawat_app/utils/prayer_schedule.dart';
+import 'package:salawat_app/data/notifications/prayer_schedule.dart';
 
 void main() {
   // Makkah, fixed instant: 2025-06-15 10:00 local.

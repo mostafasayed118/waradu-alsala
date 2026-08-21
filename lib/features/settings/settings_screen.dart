@@ -1,30 +1,22 @@
-import 'dart:async';
-import 'dart:convert';
-import 'dart:io';
-
-import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
-import 'package:path_provider/path_provider.dart';
 import 'package:provider/provider.dart';
-import 'package:share_plus/share_plus.dart';
 import 'package:salawat_app/domain/entities/adhkar_counter.dart';
 import 'package:salawat_app/features/counting/counters_provider.dart';
 import 'package:salawat_app/features/settings/settings_provider.dart';
 import 'package:salawat_app/features/settings/dialogs/daily_target_dialog.dart';
 import 'package:salawat_app/features/settings/dialogs/daily_times_dialog.dart';
 import 'package:salawat_app/features/settings/dialogs/delete_counter_dialog.dart';
+import 'package:salawat_app/features/settings/dialogs/export_sheet.dart';
 import 'package:salawat_app/features/settings/dialogs/prayer_location_dialog.dart';
 import 'package:salawat_app/features/settings/dialogs/prayer_offset_dialog.dart';
 import 'package:salawat_app/features/settings/dialogs/rename_dialog.dart';
 import 'package:salawat_app/features/settings/dialogs/reminder_interval_dialog.dart';
 import 'package:salawat_app/features/settings/dialogs/reminder_type_dialog.dart';
-import 'package:salawat_app/data/backup_service.dart';
-import 'package:salawat_app/data/notifications/notification_service.dart';
+import 'package:salawat_app/features/settings/dialogs/restore_flow.dart';
 import 'package:salawat_app/core/l10n/app_localizations.dart';
 import 'package:salawat_app/core/theme/app_text_styles.dart';
 import 'package:salawat_app/core/utils/breakpoints.dart';
 import 'package:salawat_app/shared/widgets/max_width_box.dart';
-import 'package:salawat_app/domain/services/stats_calculator.dart';
 import 'package:salawat_app/shared/widgets/gold_divider.dart';
 import 'package:salawat_app/features/about/about_screen.dart';
 
@@ -206,12 +198,12 @@ class SettingsScreen extends StatelessWidget {
               leading: _medallionIcon(context, Icons.ios_share),
               title: Text(s.exportData),
               trailing: const Icon(Icons.chevron_right),
-              onTap: () => _showExportSheet(context),
+              onTap: () => showExportSheet(context),
             ),
             ListTile(
               leading: _medallionIcon(context, Icons.restore),
               title: Text(s.restoreBackup),
-              onTap: () => _showRestoreFlow(context),
+              onTap: () => showRestoreFlow(context),
             ),
 
             // About — pushed as a full screen, not a shell tab
@@ -242,132 +234,6 @@ class SettingsScreen extends StatelessWidget {
     }
     return '${settings.latitude!.toStringAsFixed(3)}, '
         '${settings.longitude!.toStringAsFixed(3)}';
-  }
-
-  void _showExportSheet(BuildContext context) {
-    final s = S.of(context);
-    showModalBottomSheet<void>(
-      context: context,
-      builder: (sheetContext) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ListTile(
-              leading: const Icon(Icons.description),
-              title: Text(s.exportJsonOption),
-              onTap: () {
-                Navigator.pop(sheetContext);
-                _exportData(context, isCsv: false);
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.table_chart),
-              title: Text(s.exportCsvOption),
-              onTap: () {
-                Navigator.pop(sheetContext);
-                _exportData(context, isCsv: true);
-              },
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Future<void> _exportData(BuildContext context, {required bool isCsv}) async {
-    final backup = context.read<BackupService>();
-    final messenger = ScaffoldMessenger.of(context);
-    final s = S.of(context);
-    try {
-      final content =
-          isCsv ? await backup.buildCsv() : await backup.buildJsonBackup();
-      final dir = await getTemporaryDirectory();
-      final name = 'zikr-backup-${dailyKey(DateTime.now())}.${isCsv ? 'csv' : 'json'}';
-      final file = File('${dir.path}/$name')..writeAsStringSync(content);
-      await SharePlus.instance.share(
-        ShareParams(
-          files: [
-            XFile(file.path, mimeType: isCsv ? 'text/csv' : 'application/json'),
-          ],
-        ),
-      );
-      unawaited(file.delete());
-    } catch (_) {
-      messenger.showSnackBar(
-        SnackBar(content: Text(s.errorExportFailed)),
-      );
-    }
-  }
-
-  Future<void> _showRestoreFlow(BuildContext context) async {
-    final s = S.of(context);
-    final backup = context.read<BackupService>();
-    final counters = context.read<CountersProvider>();
-    final settings = context.read<SettingsProvider>();
-    final notifications = context.read<NotificationService>();
-    final messenger = ScaffoldMessenger.of(context);
-
-    final picked = await FilePicker.pickFiles(
-      type: FileType.custom,
-      allowedExtensions: ['json'],
-    );
-    if (picked.isEmpty) return;
-
-    final BackupData data;
-    try {
-      final bytes = await picked.single.readAsBytes();
-      data = backup.parseJsonBackup(utf8.decode(bytes));
-    } on BackupException catch (e) {
-      messenger.showSnackBar(
-        SnackBar(content: Text(s.backupError(e.code.name))),
-      );
-      return;
-    } catch (_) {
-      messenger.showSnackBar(
-        SnackBar(content: Text(s.errorReadFileFailed)),
-      );
-      return;
-    }
-
-    if (!context.mounted) return;
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: Text(s.restoreBackup),
-        content: Text(s.restoreConfirmBody),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext, false),
-            child: Text(s.cancel),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext, true),
-            child: Text(
-              s.restoreAction,
-              style: const TextStyle(color: Colors.red),
-            ),
-          ),
-        ],
-      ),
-    );
-    if (confirmed != true || !context.mounted) return;
-
-    try {
-      await backup.applyBackup(data);
-      await counters.load();
-      await settings.load();
-      messenger.showSnackBar(
-        SnackBar(content: Text(s.restoreSuccess)),
-      );
-    } catch (_) {
-      messenger.showSnackBar(
-        SnackBar(content: Text(s.errorRestoreFailed)),
-      );
-    }
-    try {
-      await notifications.rescheduleAll(counters.counters,
-          settings: settings.settings);
-    } catch (_) {}
   }
 
   Widget _buildSectionTitle(BuildContext context, String title) {

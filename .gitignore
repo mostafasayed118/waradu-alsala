@@ -44,5 +44,5 @@ app.*.map.json
 /android/app/profile
 /android/app/release
 
-# Nested legacy copy of the app (has its own .git) — kept out of this worktree
-/waradu-alsala/
+# Agent tooling scratch state
+/.superpowers/

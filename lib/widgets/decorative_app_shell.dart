@@ -13,6 +13,10 @@ class DecorativeAppShell extends StatefulWidget {
   /// Exactly 3 widgets: Home, Stats, Settings (in that order).
   final List<Widget> screens;
 
+  /// Caps the bottom-nav pill row so tabs stay grouped and centered on
+  /// tablets instead of hugging the far edges. A no-op below this width.
+  static const double navMaxWidth = 480;
+
   @override
   State<DecorativeAppShell> createState() => _DecorativeAppShellState();
 }
@@ -88,18 +92,30 @@ class _DecorativeAppShellState extends State<DecorativeAppShell> {
           border: Border(top: BorderSide(color: gold, width: 0.5)),
         ),
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceAround,
-          children: [
-            for (var i = 0; i < _tabs.length; i++)
-              _NavPill(
-                label: _tabs[i].label,
-                icon: _tabs[i].icon,
-                selected: i == _index,
-                gold: gold,
-                onTap: () => setState(() => _index = i),
-              ),
-          ],
+        // NOTE: deliberately not MaxWidthBox here. MaxWidthBox centers with a
+        // plain Center, which expands to fill available height — inside
+        // bottomNavigationBar that would claim the whole screen and collapse
+        // the body to zero height. heightFactor: 1 sizes to the pill row.
+        child: Align(
+          heightFactor: 1,
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(
+              maxWidth: DecorativeAppShell.navMaxWidth,
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceAround,
+              children: [
+                for (var i = 0; i < _tabs.length; i++)
+                  _NavPill(
+                    label: _tabs[i].label,
+                    icon: _tabs[i].icon,
+                    selected: i == _index,
+                    gold: gold,
+                    onTap: () => setState(() => _index = i),
+                  ),
+              ],
+            ),
+          ),
         ),
       ),
     );

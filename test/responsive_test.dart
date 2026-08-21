@@ -209,6 +209,39 @@ void main() {
     expect(StatsScreen.chartHeightFor(500), 220);
     expect(StatsScreen.chartHeightFor(800), 260);
   });
+
+  testWidgets('Shell nav bar is centered and capped at tablet width',
+      (tester) async {
+    tester.view.physicalSize = const Size(1200, 800);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: DecorativeAppShell(
+          screens: [
+            Center(child: Text('home')),
+            Center(child: Text('stats')),
+            Center(child: Text('settings')),
+          ],
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    // The pill row is capped so the tabs stay grouped instead of hugging edges.
+    final capped = tester
+        .widgetList<ConstrainedBox>(find.byType(ConstrainedBox))
+        .any((c) => c.constraints.maxWidth == DecorativeAppShell.navMaxWidth);
+    expect(capped, isTrue);
+
+    // Tabs remain present and tappable.
+    expect(find.text('الإحصائيات'), findsOneWidget);
+    await tester.tap(find.text('الإحصائيات'));
+    await tester.pumpAndSettle();
+    expect(find.text('stats'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
 }
 
 /// Pumps StatsScreen at a fixed surface size with one seeded counter.

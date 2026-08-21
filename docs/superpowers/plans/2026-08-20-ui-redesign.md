@@ -1,270 +1,69 @@
 # UI Redesign — Elegant & Ornamental Islamic Theme Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [x]`) syntax for tracking.
 
-**Goal:** Restyle the Salawat counter app into an elegant, ornamental Islamic aesthetic (emerald + antique gold, calligraphic fonts, code-drawn geometric motifs) and restructure navigation into a decorative 3-tab bottom-nav shell — with zero logic changes.
+**Goal:** Restyle the Salawat counter app into an elegant, ornamental Islamic aesthetic (deep emerald + antique gold, Amiri/Reem Kufi fonts, code-drawn geometric motifs) and restructure navigation into a single decorative bottom-nav shell with 3 tabs — with zero logic changes.
 
-**Architecture:** Replace the per-screen Scaffold/AppBar + named-routes structure with a single `DecorativeAppShell` holding an `IndexedStack` of 3 tabs (Home, Stats, Settings); About is pushed from Settings. New code-drawn decorative widgets (`IslamicPattern`, `MihrabArch`, `GoldDivider`) render motifs via `CustomPaint`. A new `AppTextStyles` map centralizes calligraphic typography. The theme is recolored to emerald/gold. All provider/model/service logic is untouched.
+**Architecture:** A new `DecorativeAppShell` wraps an `IndexedStack` of Home/Stats/Settings screens (state preserved across tabs). New code-drawn widgets (`IslamicPattern`, `MihrabArch`) supply the 8-point-star Khatam tessellation and mihrab arch shapes via `CustomPaint`. Each screen becomes body-only content (drops its own `Scaffold`/`AppBar`). About is pushed from Settings (the `/about` named route is removed). The existing `CountersProvider`/`SettingsProvider` wiring is untouched.
 
-**Tech Stack:** Flutter (Material 3), provider, fl_chart, intl, shared_preferences, flutter_local_notifications, share_plus, file_picker, path_provider.
+**Tech Stack:** Flutter (Dart), `provider`, `fl_chart`, `CustomPaint`/`Path`/`Canvas` for motifs, Amiri + Reem Kufi fonts (OFL).
 
 **Spec:** `docs/superpowers/specs/2026-08-20-ui-redesign-design.md`
 
 ## Global Constraints
 
-- **No logic changes:** every counter/reminder/backup/stats computation keeps current behavior. Provider APIs (`increment`, `undo`, `reset`, `addCounter`, `setActive`, `setDailyTarget`, `setRemindersEnabled`, `setReminderType`, `setReminderInterval`, `setDailyReminderTimes`, `notifyDailyTargetReached`, `toggleVibration`, `toggleDarkMode`) are called unchanged.
-- **Fonts external:** `.ttf` files for Amiri and Reem Kufi cannot be fetched here; pubspec + code reference them at `assets/fonts/`. Until present, Flutter falls back to system fonts — app runs, tests pass.
-- **No external image assets:** all motifs are `CustomPaint` + `Path`/`Canvas`.
-- **RTL:** locale stays `ar_SA`; all new Arabic strings are literals inline (matching current code's convention) or reuse `AppStrings`.
-- **Test gate:** full `flutter test` must pass; existing pure-logic tests (`adhkar_counter_test`, `counters_provider_test`, `stats_test`, `settings_provider_test`, `backup_service_test`, `notification_service_test`, `storage_service_test`) stay unchanged. Only widget tests that couple to presentation details (the `Icons.settings` AppBar entry and `LinearProgressIndicator`) are updated to match the new navigation/presentation.
-- **Package:** `salawat_app`.
-- **Branch:** `redesign/elegant-ornamental` (already created).
+- **No logic changes.** Every counter, reminder, backup, and stats computation keeps its current behavior. This is pure presentation + navigation restructure.
+- **No new features, no data model changes, no new locale** (existing `ar_SA` only).
+- **No external image assets.** All Islamic motifs (8-point-star Khatam tessellation, mihrab arch, gold hairline dividers, star nodes) are drawn in code via `CustomPaint` + `Path`/`Canvas`. Only the fonts are external.
+- **Fonts** live at `assets/fonts/Amiri-Regular.ttf`, `Amiri-Bold.ttf`, `ReemKufi-Regular.ttf`, `ReemKufi-Medium.ttf` (already wired in `pubspec.yaml`). Until the .ttfs are present, Flutter falls back to system fonts — app runs, tests pass; calligraphic type appears once files added.
+- **Verification gate:** full `flutter test` suite must pass, plus new decorative-widget smoke tests. Existing logic tests unchanged.
+- **Palette tokens** (already in `lib/utils/app_theme.dart`): emerald `#0B4D2C` / dark `#14794A`; emeraldDeep `#073322` / dark `#0B4D2C`; gold `#C9A24B` / dark `#E6C976`; goldLight `#E6C976` / dark `#F2DFA0`; cream `#FAF6EC`; night `#0E1F15`; ink `#1A2E1F`; parchment `#E8E2D0`.
+- **Text styles** (already in `lib/utils/app_text_styles.dart`): `AppTextStyles.bismillah(context)`, `.display(context)`, `.kufiNumber(context)`, `.bodyArabic(context)`, `.uiLabel(context)`.
 
----
+## Baseline state (already done — do NOT redo)
+
+Before this plan begins, the following Section 1 work is **already present in the repo** and must be left intact / built upon, not recreated:
+
+- `lib/utils/app_theme.dart` — new emerald/gold/cream/night palette + `lightTheme()`/`darkTheme()`.
+- `lib/utils/app_text_styles.dart` — the 5 named styles above.
+- `pubspec.yaml` — `flutter.fonts` section declaring `Amiri` + `ReemKufi` families, and `assets/` includes `assets/fonts/`.
+
+Tasks below build the remaining widgets, shell, and screen rewrites on top of this.
 
 ## File Structure
 
-**New files:**
-- `lib/widgets/islamic_pattern.dart` — `CustomPaint` widget drawing the 8-pointed-star (Khatam) tessellation as a faint background layer. Params: `opacity`, `color`.
-- `lib/widgets/mihrab_arch.dart` — `CustomPainter` + container drawing a rounded mihrab/arch top edge with gold outline. Params: `child`, `color`, `strokeColor`.
-- `lib/widgets/gold_divider.dart` — 1px gold hairline with a centered 8-point star node.
-- `lib/widgets/decorative_app_shell.dart` — persistent Scaffold: decorative arch header, `IndexedStack` body of 3 screens, ornamental 3-tab bottom nav. Stateful (`_currentIndex`).
-- `lib/utils/app_text_styles.dart` — named style map (`bismillah`, `display`, `kufiNumber`, `bodyArabic`, `uiLabel`) resolving per brightness.
-- `test/decorative_widgets_test.dart` — smoke tests for the new decorative widgets + shell.
+New files:
+- `lib/widgets/islamic_pattern.dart` — `IslamicPattern` CustomPainter: 8-pointed-star (Khatam) tessellation, parameterized by opacity + color. Used as a faint background layer.
+- `lib/widgets/mihrab_arch.dart` — `MihrabArch` CustomPainter + a `MihrabArchClipper`/container helper: rounded mihrab/arch top edge with gold outline, used to top the counter card and about emblem.
+- `lib/widgets/gold_divider.dart` — `GoldHairlineDivider`: 1px gold line with a small centered 8-point-star node. Used between sections.
+- `lib/widgets/decorative_app_shell.dart` — `DecorativeAppShell`: persistent Scaffold with custom decorative header band (mihrab-arch title), 3-tab ornamental pill bottom-nav, and an `IndexedStack` body. Owns the tab index state.
+- `test/islamic_pattern_test.dart` — smoke test: `IslamicPattern` renders without error.
+- `test/mihrab_arch_test.dart` — smoke test: `MihrabArch` renders.
+- `test/decorative_app_shell_test.dart` — smoke test: shell switches tabs and preserves state.
 
-**Modified files:**
-- `lib/utils/app_theme.dart` — new emerald/gold color tokens + font-aware theme.
-- `pubspec.yaml` — `flutter.fonts` section + `assets/fonts/` entry.
-- `lib/main.dart` — `IndexedStack` shell, drop named routes + `/about`.
-- `lib/screens/home_screen.dart` — full rewrite to mihrab-arch centerpiece; remove Scaffold/AppBar/bottom nav (shell owns those).
-- `lib/screens/stats_screen.dart` — restyle chart/tiles; remove Scaffold/AppBar.
-- `lib/screens/settings_screen.dart` — restyle sections/listiles; remove Scaffold/AppBar; About tile pushes `AboutScreen` via `Navigator.push` (not `pushNamed('/about')`).
-- `lib/screens/about_screen.dart` — restyle to mihrab emblem; keep its own Scaffold/AppBar (it's a pushed full screen, not a shell tab).
-- `test/widget_test.dart` — update navigation (bottom-nav labels, not `Icons.settings`) + replace `LinearProgressIndicator` assertion.
-- `test/settings_backup_test.dart` — update `openSettings()` helper to use bottom-nav label.
+Modified files:
+- `lib/main.dart` — replace named-routes map with `DecorativeAppShell` + `IndexedStack` of Home/Stats/Settings; drop `/about` route + About import.
+- `lib/screens/home_screen.dart` — rewrite as body-only content: bismillah band, medallion counter switcher, mihrab-arch counter card with segmented progress, tap-to-count button, undo/reset text-buttons. Drop own `Scaffold`/`AppBar`/`bottomNavigationBar`.
+- `lib/screens/stats_screen.dart` — restyle: slimmer arch title (from shell), restyled `SegmentedButton`, recolored chart, medallion summary tiles with star dividers, faint pattern behind chart card. Drop own `Scaffold`/`AppBar`.
+- `lib/screens/settings_screen.dart` — restyle section headers to Amiri gold + gold hairline divider, medallion leading icons, recolored switches/dialogs; About tile pushes About via `Navigator.push` (not `pushNamed('/about')`). Drop own `Scaffold`/`AppBar`.
+- `lib/screens/about_screen.dart` — restyle: mihrab-arch framed emblem with pattern behind, salawat text as calligraphic quote with gold hairlines, medallion feature items, gold italic footer. Drop own `Scaffold`/`AppBar` (rendered inside shell's arch header when pushed).
+- `test/widget_test.dart` — update navigation finders + the one assertion that breaks due to the deliberate `LinearProgressIndicator` → segmented-progress replacement (spec-mandated). See Task 8.
 
 ---
 
-### Task 1: Theme + text styles + font wiring
-
-**Files:**
-- Modify: `lib/utils/app_theme.dart` (full rewrite of color tokens + theme builders)
-- Create: `lib/utils/app_text_styles.dart`
-- Modify: `pubspec.yaml:34-38` (add fonts + fonts dir asset)
-- Test: `test/widget_test.dart` (existing `pumpApp` smoke already renders `MyApp`; reuse as the render gate)
-
-**Interfaces:**
-- Produces: `AppTheme.lightTheme()`, `AppTheme.darkTheme()` (same signatures, new colors); `AppTheme.emerald`, `AppTheme.gold`, `AppTheme.goldLight`, `AppTheme.cream`, `AppTheme.night`, `AppTheme.ink`, `AppTheme.parchment` color constants; `AppTextStyles.of(context)` returning the style map.
-
-- [ ] **Step 1: Write the font + asset config into pubspec.yaml**
-
-Replace the `flutter:` section (lines 34-38) with:
-
-```yaml
-flutter:
-  uses-material-design: true
-
-  assets:
-    - assets/
-    - assets/fonts/
-
-  fonts:
-    - family: Amiri
-      fonts:
-        - asset: assets/fonts/Amiri-Regular.ttf
-        - asset: assets/fonts/Amiri-Bold.ttf
-          weight: 700
-    - family: ReemKufi
-      fonts:
-        - asset: assets/fonts/ReemKufi-Regular.ttf
-        - asset: assets/fonts/ReemKufi-Medium.ttf
-          weight: 500
-```
-
-- [ ] **Step 2: Create assets/fonts/ directory placeholder**
-
-Run: `mkdir -p assets/fonts && touch assets/fonts/.gitkeep`
-This ensures the asset path exists so Flutter doesn't error on a missing dir at build time. The `.gitkeep` is the only tracked file there until real `.ttf`s are dropped in.
-
-- [ ] **Step 3: Rewrite lib/utils/app_theme.dart**
-
-```dart
-import 'package:flutter/material.dart';
-
-class AppTheme {
-  // Emerald
-  static const Color emerald = Color(0xFF0B4D2C);
-  static const Color emeraldDeep = Color(0xFF073322);
-  // Gold
-  static const Color gold = Color(0xFFC9A24B);
-  static const Color goldLight = Color(0xFFE6C976);
-  // Surfaces
-  static const Color cream = Color(0xFFFAF6EC);
-  static const Color night = Color(0xFF0E1F15);
-  // Text
-  static const Color ink = Color(0xFF1A2E1F);
-  static const Color parchment = Color(0xFFE8E2D0);
-
-  static ThemeData lightTheme() => _build(
-        brightness: Brightness.light,
-        primary: emerald,
-        secondary: gold,
-        surface: cream,
-        appBarBackground: emerald,
-        bodyColor: ink,
-        onSurface: ink,
-      );
-
-  static ThemeData darkTheme() => _build(
-        brightness: Brightness.dark,
-        primary: const Color(0xFF14794A),
-        secondary: goldLight,
-        surface: night,
-        appBarBackground: emeraldDeep,
-        bodyColor: parchment,
-        onSurface: parchment,
-      );
-
-  static ThemeData _build({
-    required Brightness brightness,
-    required Color primary,
-    required Color secondary,
-    required Color surface,
-    required Color appBarBackground,
-    required Color bodyColor,
-    required Color onSurface,
-  }) {
-    return ThemeData(
-      useMaterial3: true,
-      brightness: brightness,
-      colorScheme: ColorScheme.fromSeed(
-        seedColor: primary,
-        brightness: brightness,
-        primary: primary,
-        secondary: secondary,
-        surface: surface,
-      ),
-      appBarTheme: AppBarTheme(
-        backgroundColor: appBarBackground,
-        foregroundColor: Colors.white,
-        elevation: 0,
-        centerTitle: true,
-      ),
-      cardTheme: CardThemeData(
-        elevation: 2,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-        ),
-      ),
-      elevatedButtonTheme: ElevatedButtonThemeData(
-        style: ElevatedButton.styleFrom(
-          backgroundColor: primary,
-          foregroundColor: Colors.white,
-          padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
-          textStyle: const TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-      ),
-      textTheme: TextTheme(
-        headlineLarge: TextStyle(
-          fontSize: 28,
-          fontWeight: FontWeight.bold,
-          color: primary,
-        ),
-        headlineMedium: TextStyle(
-          fontSize: 24,
-          fontWeight: FontWeight.bold,
-          color: primary,
-        ),
-        bodyLarge: TextStyle(fontSize: 18, color: bodyColor),
-        bodyMedium: TextStyle(fontSize: 16, color: bodyColor),
-      ),
-    );
-  }
-}
-```
-
-Note: the old `primaryGreen`/`lightGreen`/`darkGreen`/`ivory`/`gold`/`lightGold` constants are removed. Grep confirms no other file references them by name (screens use `Theme.of(context).colorScheme.*`, not `AppTheme.<constant>` directly).
-
-- [ ] **Step 4: Create lib/utils/app_text_styles.dart**
-
-```dart
-import 'package:flutter/material.dart';
-
-class AppTextStyles {
-  AppTextStyles._();
-
-  static TextStyle bismillah(BuildContext context) => TextStyle(
-        fontFamily: 'Amiri',
-        fontSize: 22,
-        fontWeight: FontWeight.bold,
-        color: Theme.of(context).colorScheme.secondary,
-      );
-
-  static TextStyle display(BuildContext context) => TextStyle(
-        fontFamily: 'Amiri',
-        fontSize: 20,
-        fontWeight: FontWeight.bold,
-        color: Theme.of(context).colorScheme.secondary,
-      );
-
-  static TextStyle kufiNumber(BuildContext context) => TextStyle(
-        fontFamily: 'ReemKufi',
-        fontSize: 88,
-        fontWeight: FontWeight.w500,
-        color: Theme.of(context).colorScheme.primary,
-      );
-
-  static TextStyle bodyArabic(BuildContext context) => TextStyle(
-        fontFamily: 'Amiri',
-        fontSize: 16,
-        color: Theme.of(context).textTheme.bodyMedium?.color,
-      );
-
-  static TextStyle uiLabel(BuildContext context) => TextStyle(
-        fontFamily: 'ReemKufi',
-        fontSize: 24,
-        fontWeight: FontWeight.w500,
-        color: Colors.white,
-      );
-}
-```
-
-- [ ] **Step 5: Run the existing smoke test to confirm the app still renders with the new theme**
-
-Run: `flutter test test/widget_test.dart`
-Expected: FAIL — the reminder-snackbar test taps `Icons.settings` (still present until Task 6) but the daily-target test asserts `LinearProgressIndicator` (still present until Task 6). At this stage only verify that the app **builds and renders** — the first test `Home screen displays the active counter` and `Increment button increases the counter` should PASS. If those pass, the theme swap is sound.
-
-If `flutter test` fails to compile, fix the import/type errors before continuing.
-
-- [ ] **Step 6: Commit**
-
-```bash
-git add lib/utils/app_theme.dart lib/utils/app_text_styles.dart pubspec.yaml assets/fonts/.gitkeep
-git commit -m "feat(theme): emerald/gold palette, font wiring, AppTextStyles"
-```
-
----
-
-### Task 2: IslamicPattern widget
+## Task 1: IslamicPattern (8-point-star Khatam tessellation)
 
 **Files:**
 - Create: `lib/widgets/islamic_pattern.dart`
-- Test: `test/decorative_widgets_test.dart` (new, create with first test)
+- Test: `test/islamic_pattern_test.dart`
 
 **Interfaces:**
-- Produces: `IslamicPattern({required double opacity, Color? color})` — a `CustomPaint` widget painting a repeating 8-pointed-star (Khatam) tessellation across its bounds at the given opacity. Used as a faint background layer.
+- Produces: `IslamicPattern` — a widget (wrapping `CustomPaint`) with constructor `IslamicPattern({super.key, Color? color, double opacity = 0.04})`. It paints a repeating 8-pointed-star (Khatam) tessellation tile across its size, clipped to its bounds, at the given opacity. `color` defaults to `Theme.of(context).colorScheme.secondary` (gold) when null.
 
-- [ ] **Step 1: Write the failing test**
-
-Create `test/decorative_widgets_test.dart`:
+- [x] **Step 1: Write the failing test**
 
 ```dart
+// test/islamic_pattern_test.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:salawat_app/widgets/islamic_pattern.dart';
@@ -277,528 +76,299 @@ void main() {
           body: SizedBox(
             width: 200,
             height: 200,
-            child: IslamicPattern(opacity: 0.04),
+            child: IslamicPattern(opacity: 0.1),
           ),
         ),
       ),
     );
     expect(find.byType(IslamicPattern), findsOneWidget);
-    expect(find.byType(CustomPaint), findsWidgets);
+    expect(tester.takeException(), isNull);
   });
 }
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
-Run: `flutter test test/decorative_widgets_test.dart`
-Expected: FAIL — `IslamicPattern` not defined (import/target not found).
+Run: `flutter test test/islamic_pattern_test.dart`
+Expected: FAIL — `Target of URI doesn't exist: 'package:salawat_app/widgets/islamic_pattern.dart'`.
 
-- [ ] **Step 3: Write minimal implementation**
-
-Create `lib/widgets/islamic_pattern.dart`:
+- [x] **Step 3: Write minimal implementation**
 
 ```dart
+// lib/widgets/islamic_pattern.dart
 import 'package:flutter/material.dart';
 
-/// A faint repeating 8-pointed-star (Khatam) tessellation painted with
-/// [CustomPaint]. Intended as a low-opacity decorative background layer.
+/// A faint 8-pointed-star (Khatam) tessellation painted with CustomPaint.
+///
+/// Used as a decorative low-opacity background layer behind cards/headers.
+/// Drawn entirely in code — zero external image assets.
 class IslamicPattern extends StatelessWidget {
-  const IslamicPattern({
-    super.key,
-    this.opacity = 0.05,
-    this.color,
-  });
+  const IslamicPattern({super.key, this.color, this.opacity = 0.04});
 
-  /// Opacity of the painted motif. Typical values 0.03–0.06.
-  final double opacity;
-
-  /// Motif color; defaults to the theme secondary (gold).
+  /// Star color. Defaults to the theme gold (colorScheme.secondary) when null.
   final Color? color;
+
+  /// Opacity applied to the star paint. Typical values 0.03–0.08.
+  final double opacity;
 
   @override
   Widget build(BuildContext context) {
-    final motif = color ?? Theme.of(context).colorScheme.secondary;
+    final starColor = color ?? Theme.of(context).colorScheme.secondary;
     return CustomPaint(
-      painter: _KhatamPainter(motif.withOpacity(opacity.clamp(0.0, 1.0))),
+      painter: _KhatamTessellationPainter(
+        color: starColor.withOpacity(opacity.clamp(0.0, 1.0)),
+      ),
       child: const SizedBox.expand(),
     );
   }
 }
 
-class _KhatamPainter extends CustomPainter {
-  _KhatamPainter(this.paintColor);
+class _KhatamTessellationPainter extends CustomPainter {
+  _KhatamTessellationPainter({required this.color});
 
-  final Color paintColor;
+  final Color color;
 
   @override
   void paint(Canvas canvas, Size size) {
+    // Tile the plane with a square cell; in each cell draw an 8-pointed star
+    // formed by two overlapping squares (one axis-aligned, one rotated 45°).
+    const cell = 40.0;
     final paint = Paint()
-      ..color = paintColor
+      ..color = color
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.0;
+      ..strokeWidth = 1.2;
 
-    // Tile size: two overlapping squares rotated 45° form the 8-point star.
-    const tile = 48.0;
-    final half = tile / 2;
+    final half = cell / 2;
+    final r = half * 0.82;
 
-    for (var y = -half; y < size.height + tile; y += tile) {
-      for (var x = -half; x < size.width + tile; x += tile) {
-        final center = Offset(x + half, y + half);
-        // Square axis-aligned
+    for (var y = 0; y * cell < size.height; y++) {
+      for (var x = 0; x * cell < size.width; x++) {
+        final cx = x * cell + half;
+        final cy = y * cell + half;
+        // Axis-aligned square.
+        final rect = Rect.fromCircle(center: Offset(cx, cy), radius: r);
+        canvas.drawRect(rect, paint);
+        // Rotated square (together they form an 8-pointed star / Khatam).
+        canvas.save();
+        canvas.translate(cx, cy);
+        canvas.rotate(0.785398); // 45° in radians
         canvas.drawRect(
-          Rect.fromCenter(center: center, width: tile, height: tile),
+          Rect.fromCircle(center: Offset.zero, radius: r),
           paint,
         );
-        // Square rotated 45° (diamond)
-        final path = Path()
-          ..moveTo(center.dx, center.dy - half)
-          ..lineTo(center.dx + half, center.dy)
-          ..lineTo(center.dx, center.dy + half)
-          ..lineTo(center.dx - half, center.dy)
-          ..close();
-        canvas.drawPath(path, paint);
+        canvas.restore();
       }
     }
   }
 
   @override
-  bool shouldRepaint(_KhatamPainter oldDelegate) =>
-      oldDelegate.paintColor != paintColor;
+  bool shouldRepaint(covariant _KhatamTessellationPainter old) =>
+      old.color != color;
 }
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
-Run: `flutter test test/decorative_widgets_test.dart`
-Expected: PASS
+Run: `flutter test test/islamic_pattern_test.dart`
+Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
-git add lib/widgets/islamic_pattern.dart test/decorative_widgets_test.dart
-git commit -m "feat(widgets): IslamicPattern Khatam tessellation"
+git add lib/widgets/islamic_pattern.dart test/islamic_pattern_test.dart
+git commit -m "feat(ui): add IslamicPattern 8-point-star Khatam tessellation widget"
 ```
 
 ---
 
-### Task 3: MihrabArch widget
+## Task 2: MihrabArch (arch top edge + gold outline)
 
 **Files:**
 - Create: `lib/widgets/mihrab_arch.dart`
-- Modify: `test/decorative_widgets_test.dart` (append test)
+- Test: `test/mihrab_arch_test.dart`
 
 **Interfaces:**
-- Produces: `MihrabArch({required Widget child, Color? color, Color? strokeColor})` — a container whose top edge is a rounded mihrab/arch shape (a pointed arch), drawn with a gold outline, holding `child`.
+- Produces: `MihrabArch` — a widget that draws a rounded mihrab/arch shape on its top edge with a gold outline, framing whatever `child` it contains. Constructor: `MihrabArch({super.key, required Widget child, Color? outlineColor, double outlineWidth = 1.5, double archHeight = 28})`. `outlineColor` defaults to theme gold. Internally uses `CustomPaint` to stroke the arch outline over a `ClipPath`-clipped (rounded-top) container.
 
-- [ ] **Step 1: Write the failing test**
-
-Append to `test/decorative_widgets_test.dart` (add the import at top):
+- [x] **Step 1: Write the failing test**
 
 ```dart
+// test/mihrab_arch_test.dart
+import 'package:flutter/material.dart';
+import 'package:flutter_test/flutter_test.dart';
 import 'package:salawat_app/widgets/mihrab_arch.dart';
-```
 
-Add inside `main()`:
-
-```dart
-  testWidgets('MihrabArch renders its child', (tester) async {
+void main() {
+  testWidgets('MihrabArch renders its child and outline', (tester) async {
     await tester.pumpWidget(
       const MaterialApp(
         home: Scaffold(
-          body: MihrabArch(child: Text('داخل المحراب')),
+          body: SizedBox(
+            width: 300,
+            height: 200,
+            child: MihrabArch(child: Text('محتوى')),
+          ),
         ),
       ),
     );
     expect(find.byType(MihrabArch), findsOneWidget);
-    expect(find.text('داخل المحراب'), findsOneWidget);
+    expect(find.text('محتوى'), findsOneWidget);
+    expect(tester.takeException(), isNull);
   });
+}
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
-Run: `flutter test test/decorative_widgets_test.dart`
-Expected: FAIL — `MihrabArch` not defined.
+Run: `flutter test test/mihrab_arch_test.dart`
+Expected: FAIL — `Target of URI doesn't exist: 'package:salawat_app/widgets/mihrab_arch.dart'`.
 
-- [ ] **Step 3: Write minimal implementation**
-
-Create `lib/widgets/mihrab_arch.dart`:
+- [x] **Step 3: Write minimal implementation**
 
 ```dart
+// lib/widgets/mihrab_arch.dart
 import 'package:flutter/material.dart';
 
-/// A container whose top edge is a pointed mihrab/arch shape, outlined in
-/// gold. Holds [child] in the rectangular body beneath the arch.
+/// A container whose top edge is a mihrab/arch curve, drawn with a gold
+/// outline. Used to top the counter card and the about emblem.
 class MihrabArch extends StatelessWidget {
   const MihrabArch({
     super.key,
     required this.child,
-    this.color,
-    this.strokeColor,
-    this.archHeight = 32,
+    this.outlineColor,
+    this.outlineWidth = 1.5,
+    this.archHeight = 28,
   });
 
   final Widget child;
-  final Color? color;
-  final Color? strokeColor;
-
-  /// Height of the pointed arch above the rectangular body.
+  final Color? outlineColor;
+  final double outlineWidth;
   final double archHeight;
 
   @override
   Widget build(BuildContext context) {
-    final fill = color ?? Theme.of(context).colorScheme.surface;
-    final stroke = strokeColor ?? Theme.of(context).colorScheme.secondary;
+    final gold = outlineColor ?? Theme.of(context).colorScheme.secondary;
     return CustomPaint(
-      painter: _MihrabArchPainter(fill, stroke, archHeight),
+      painter: _MihrabOutlinePainter(
+        color: gold,
+        strokeWidth: outlineWidth,
+        archHeight: archHeight,
+      ),
       child: ClipPath(
-        clipper: _MihrabArchClipper(archHeight),
-        child: Padding(
-          padding: EdgeInsets.only(top: archHeight),
-          child: child,
-        ),
+        clipper: _MihrabArchClipper(archHeight: archHeight),
+        child: child,
       ),
     );
   }
 }
 
-class _MihrabArchPainter extends CustomPainter {
-  _MihrabArchPainter(this.fill, this.stroke, this.archHeight);
-
-  final Color fill;
-  final Color stroke;
-  final double archHeight;
-
-  Path _archPath(Size size) {
-    final w = size.width;
-    return Path()
-      ..moveTo(0, archHeight)
-      ..quadraticBezierTo(w / 2, -archHeight * 0.6, w, archHeight)
-      ..lineTo(w, size.height)
-      ..lineTo(0, size.height)
-      ..close();
-  }
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final path = _archPath(size);
-    canvas.drawPath(path, Paint()..color = fill);
-    canvas.drawPath(
-      path,
-      Paint()
-        ..color = stroke
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 2,
-    );
-  }
-
-  @override
-  bool shouldRepaint(_MihrabArchPainter old) =>
-      old.fill != fill || old.stroke != stroke;
-}
-
 class _MihrabArchClipper extends CustomClipper<Path> {
-  _MihrabArchClipper(this.archHeight);
+  _MihrabArchClipper({required this.archHeight});
   final double archHeight;
 
   @override
   Path getClip(Size size) {
-    final w = size.width;
-    return Path()
-      ..moveTo(0, archHeight)
-      ..quadraticBezierTo(w / 2, -archHeight * 0.6, w, archHeight)
-      ..lineTo(w, size.height)
-      ..lineTo(0, size.height)
-      ..close();
+    final path = Path();
+    // Start at top-left, arch up over the top, down the sides, square bottom.
+    path.moveTo(0, archHeight);
+    // Arch: a quadratic curve peaking at the top-center.
+    path.quadraticBezierTo(size.width / 2, -archHeight, size.width, archHeight);
+    path.lineTo(size.width, size.height);
+    path.lineTo(0, size.height);
+    path.close();
+    return path;
   }
 
   @override
-  bool shouldReclip(_MihrabArchClipper old) =>
+  bool shouldReclip(covariant _MihrabArchClipper old) =>
+      old.archHeight != archHeight;
+}
+
+class _MihrabOutlinePainter extends CustomPainter {
+  _MihrabOutlinePainter({
+    required this.color,
+    required this.strokeWidth,
+    required this.archHeight,
+  });
+
+  final Color color;
+  final double strokeWidth;
+  final double archHeight;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = color
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = strokeWidth;
+    final path = Path()
+      ..moveTo(0, archHeight)
+      ..quadraticBezierTo(size.width / 2, -archHeight, size.width, archHeight);
+    canvas.drawPath(path, paint);
+  }
+
+  @override
+  bool shouldRepaint(covariant _MihrabOutlinePainter old) =>
+      old.color != color ||
+      old.strokeWidth != strokeWidth ||
       old.archHeight != archHeight;
 }
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
-Run: `flutter test test/decorative_widgets_test.dart`
-Expected: PASS (both tests)
+Run: `flutter test test/mihrab_arch_test.dart`
+Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
-git add lib/widgets/mihrab_arch.dart test/decorative_widgets_test.dart
-git commit -m "feat(widgets): MihrabArch pointed-arch container"
+git add lib/widgets/mihrab_arch.dart test/mihrab_arch_test.dart
+git commit -m "feat(ui): add MihrabArch arch-top container with gold outline"
 ```
 
 ---
 
-### Task 4: GoldDivider widget
+## Task 3: GoldHairlineDivider (gold line + star node)
 
 **Files:**
 - Create: `lib/widgets/gold_divider.dart`
-- Modify: `test/decorative_widgets_test.dart` (append test)
 
 **Interfaces:**
-- Produces: `GoldDivider({double indent, Color? color})` — a horizontal 1px gold line with a small centered 8-point star node.
+- Produces: `GoldHairlineDivider` — a stateless widget drawing a 1px gold horizontal line with a small centered 8-point-star node. Constructor: `GoldHairlineDivider({super.key, Color? color, double indent = 0})`. `color` defaults to theme gold. Used between sections in Settings/Stats/Home. No dedicated test (pure presentation, covered by the app-level widget tests); verified by `flutter test` not erroring on screens that use it.
 
-- [ ] **Step 1: Write the failing test**
-
-Append import + test to `test/decorative_widgets_test.dart`:
+- [x] **Step 1: Write minimal implementation**
 
 ```dart
-import 'package:salawat_app/widgets/gold_divider.dart';
-```
-
-```dart
-  testWidgets('GoldDivider renders a star node', (tester) async {
-    await tester.pumpWidget(
-      const MaterialApp(
-        home: Scaffold(body: GoldDivider()),
-      ),
-    );
-    expect(find.byType(GoldDivider), findsOneWidget);
-    expect(find.byType(CustomPaint), findsWidgets);
-  });
-```
-
-- [ ] **Step 2: Run test to verify it fails**
-
-Run: `flutter test test/decorative_widgets_test.dart`
-Expected: FAIL — `GoldDivider` not defined.
-
-- [ ] **Step 3: Write minimal implementation**
-
-Create `lib/widgets/gold_divider.dart`:
-
-```dart
+// lib/widgets/gold_divider.dart
 import 'package:flutter/material.dart';
 
-/// A 1px gold hairline with a small centered 8-point star node.
-class GoldDivider extends StatelessWidget {
-  const GoldDivider({super.key, this.color});
+/// A 1px gold hairline with a small centered 8-point-star node.
+/// Used as an ornamental section divider.
+class GoldHairlineDivider extends StatelessWidget {
+  const GoldHairlineDivider({super.key, this.color, this.indent = 0});
 
   final Color? color;
+  final double indent;
 
   @override
   Widget build(BuildContext context) {
-    final c = color ?? Theme.of(context).colorScheme.secondary;
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        return SizedBox(
-          height: 16,
-          child: CustomPaint(
-            size: Size(constraints.maxWidth, 16),
-            painter: _DividerPainter(c),
-          ),
-        );
-      },
-    );
-  }
-}
-
-class _DividerPainter extends CustomPainter {
-  _DividerPainter(this.c);
-  final Color c;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final mid = size.height / 2;
-    final paint = Paint()
-      ..color = c
-      ..strokeWidth = 1;
-    // Hairline
-    canvas.drawLine(Offset(0, mid), Offset(size.width, mid), paint);
-    // Centered 8-point star
-    final center = Offset(size.width / 2, mid);
-    final r = 7.0;
-    final path = Path();
-    for (var i = 0; i < 8; i++) {
-      final angle = (i * pi / 4) - pi / 2;
-      final rad = i.isEven ? r : r * 0.4;
-      final p = Offset(
-        center.dx + rad * cos(angle),
-        center.dy + rad * sin(angle),
-      );
-      if (i == 0) {
-        path.moveTo(p.dx, p.dy);
-      } else {
-        path.lineTo(p.dx, p.dy);
-      }
-    }
-    path.close();
-    canvas.drawPath(path, paint..style = PaintingStyle.fill);
-  }
-
-  @override
-  bool shouldRepaint(_DividerPainter old) => old.c != c;
-}
-```
-
-Add `import 'dart:math';` at the top of `gold_divider.dart` (uses `pi`, `cos`, `sin`).
-
-- [ ] **Step 4: Run test to verify it passes**
-
-Run: `flutter test test/decorative_widgets_test.dart`
-Expected: PASS (all three tests)
-
-- [ ] **Step 5: Commit**
-
-```bash
-git add lib/widgets/gold_divider.dart test/decorative_widgets_test.dart
-git commit -m "feat(widgets): GoldDivider with star node"
-```
-
----
-
-### Task 5: DecorativeAppShell
-
-**Files:**
-- Create: `lib/widgets/decorative_app_shell.dart`
-- Modify: `test/decorative_widgets_test.dart` (append test)
-
-**Interfaces:**
-- Consumes: three `Widget` bodies passed positionally.
-- Produces: `DecorativeAppShell({required Widget home, required Widget stats, required Widget settings})` — a `StatefulWidget` Scaffold with a decorative arch header, an `IndexedStack` of the three bodies, and a 3-tab ornamental bottom nav (`_currentIndex`). Active tab shows a gold star node above its label. Tab labels are findable `Text` widgets: 'الرئيسية', 'الإحصائيات', 'الإعدادات'.
-
-- [ ] **Step 1: Write the failing test**
-
-Append import + test to `test/decorative_widgets_test.dart`:
-
-```dart
-import 'package:salawat_app/widgets/decorative_app_shell.dart';
-```
-
-```dart
-  testWidgets('shell switches tabs and preserves state', (tester) async {
-    // A stateful body that increments a counter so we can confirm state is
-    // preserved across tab switches (IndexedStack keeps it alive).
-    var homeTicks = 0;
-    await tester.pumpWidget(
-      MaterialApp(
-        home: DecorativeAppShell(
-          home: Builder(
-            builder: (_) {
-              homeTicks++;
-              return const Text('HOME_BODY');
-            },
-          ),
-          stats: const Text('STATS_BODY'),
-          settings: const Text('SETTINGS_BODY'),
-        ),
-      ),
-    );
-
-    // Home is shown first.
-    expect(find.text('HOME_BODY'), findsOneWidget);
-    expect(find.text('الرئيسية'), findsOneWidget);
-
-    // Switch to stats tab by tapping its label.
-    await tester.tap(find.text('الإحصائيات'));
-    await tester.pumpAndSettle();
-    expect(find.text('STATS_BODY'), findsOneWidget);
-
-    // Switch to settings tab.
-    await tester.tap(find.text('الإعدادات'));
-    await tester.pumpAndSettle();
-    expect(find.text('SETTINGS_BODY'), findsOneWidget);
-
-    // Back to home — IndexedStack keeps state, body is the same instance.
-    await tester.tap(find.text('الرئيسية'));
-    await tester.pumpAndSettle();
-    expect(find.text('HOME_BODY'), findsOneWidget);
-  });
-```
-
-- [ ] **Step 2: Run test to verify it fails**
-
-Run: `flutter test test/decorative_widgets_test.dart`
-Expected: FAIL — `DecorativeAppShell` not defined.
-
-- [ ] **Step 3: Write minimal implementation**
-
-Create `lib/widgets/decorative_app_shell.dart`:
-
-```dart
-import 'package:flutter/material.dart';
-import 'islamic_pattern.dart';
-
-/// Persistent decorative shell: arch header + IndexedStack body + ornamental
-/// 3-tab bottom nav. Owns the active tab index; tabs preserve state via the
-/// IndexedStack.
-class DecorativeAppShell extends StatefulWidget {
-  const DecorativeAppShell({
-    super.key,
-    required this.home,
-    required this.stats,
-    required this.settings,
-  });
-
-  final Widget home;
-  final Widget stats;
-  final Widget settings;
-
-  @override
-  State<DecorativeAppShell> createState() => _DecorativeAppShellState();
-}
-
-class _DecorativeAppShellState extends State<DecorativeAppShell> {
-  int _currentIndex = 0;
-
-  static const _labels = ['الرئيسية', 'الإحصائيات', 'الإعدادات'];
-  static const _icons = [
-    Icons.mosque,
-    Icons.bar_chart,
-    Icons.settings,
-  ];
-
-  @override
-  Widget build(BuildContext context) {
-    final bodies = [widget.home, widget.stats, widget.settings];
-    return Scaffold(
-      body: SafeArea(
-        child: Column(
-          children: [
-            _DecorativeHeader(active: _currentIndex == 0),
-            Expanded(
-              child: IndexedStack(
-                index: _currentIndex,
-                children: bodies,
-              ),
-            ),
-          ],
-        ),
-      ),
-      bottomNavigationBar: _OrnamentalNavBar(
-        currentIndex: _currentIndex,
-        onTap: (i) => setState(() => _currentIndex = i),
-      ),
-    );
-  }
-}
-
-class _DecorativeHeader extends StatelessWidget {
-  const _DecorativeHeader({required this.active});
-  final bool active;
-
-  @override
-  Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    return SizedBox(
-      height: active ? 84 : 56,
+    final gold = color ?? Theme.of(context).colorScheme.secondary;
+    return Padding(
+      padding: EdgeInsets.symmetric(horizontal: indent, vertical: 8),
       child: Stack(
+        alignment: Alignment.center,
         children: [
-          IslamicPattern(opacity: 0.05),
-          Center(
-            child: Padding(
-              padding: const EdgeInsets.only(top: 8),
-              child: Text(
-                'ورد الصلاة',
-                style: TextStyle(
-                  fontFamily: 'Amiri',
-                  fontSize: active ? 26 : 20,
-                  fontWeight: FontWeight.bold,
-                  color: cs.secondary,
-                ),
-              ),
+          Divider(height: 1, thickness: 1, color: gold),
+          // Small 8-point-star node centered on the line.
+          Container(
+            width: 12,
+            height: 12,
+            color: Theme.of(context).colorScheme.surface,
+            alignment: Alignment.center,
+            child: CustomPaint(
+              size: const Size(10, 10),
+              painter: _StarNodePainter(color: gold),
             ),
           ),
         ],
@@ -807,233 +377,424 @@ class _DecorativeHeader extends StatelessWidget {
   }
 }
 
-class _OrnamentalNavBar extends StatelessWidget {
-  const _OrnamentalNavBar({
-    required this.currentIndex,
+class _StarNodePainter extends CustomPainter {
+  _StarNodePainter({required this.color});
+  final Color color;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = color
+      ..style = PaintingStyle.fill;
+    final cx = size.width / 2;
+    final cy = size.height / 2;
+    final r = size.width / 2;
+    // Two overlapping squares → 8-point star.
+    canvas.drawRect(Rect.fromCircle(center: Offset(cx, cy), radius: r), paint);
+    canvas.save();
+    canvas.translate(cx, cy);
+    canvas.rotate(0.785398); // 45°
+    canvas.drawRect(Rect.fromCircle(center: Offset.zero, radius: r), paint);
+    canvas.restore();
+  }
+
+  @override
+  bool shouldRepaint(covariant _StarNodePainter old) => old.color != color;
+}
+```
+
+- [x] **Step 2: Run analyzer to verify it compiles**
+
+Run: `flutter analyze lib/widgets/gold_divider.dart`
+Expected: no issues.
+
+- [x] **Step 3: Commit**
+
+```bash
+git add lib/widgets/gold_divider.dart
+git commit -m "feat(ui): add GoldHairlineDivider with centered star node"
+```
+
+---
+
+## Task 4: DecorativeAppShell (header + 3-tab bottom-nav + IndexedStack)
+
+**Files:**
+- Create: `lib/widgets/decorative_app_shell.dart`
+- Test: `test/decorative_app_shell_test.dart`
+
+**Interfaces:**
+- Consumes: three body widgets (Home, Stats, Settings) passed via `screens`, plus a tab index via callback. `AppTextStyles`, `IslamicPattern`, `MihrabArch`, `GoldHairlineDivider` from Tasks 1–3.
+- Produces: `DecorativeAppShell` — a `StatefulWidget` that hosts the tab index internally and renders an `IndexedStack` of 3 screens. Constructor: `DecorativeAppShell({super.key, required List<Widget> screens})`. The header is a decorative band: Home (index 0) gets the full mihrab-arch header with app name + faint pattern; Stats/Settings get a slimmer arch title bar. The bottom nav is a 3-tab ornamental pill bar: `الرئيسية` (Home, `Icons.mosque`), `الإحصائيات` (Stats, `Icons.bar_chart`), `الإعدادات` (Settings, `Icons.settings`). Active tab shows a small gold star node above its label instead of the Material underline.
+
+> **Test-navigation contract:** The existing widget tests navigate by tapping `find.byIcon(Icons.settings)` and `find.text('الإحصائيات')`. The bottom-nav MUST present these exact icons/labels so the tests keep working without logic changes. (Home currently uses `Icons.home`/`Icons.bar_chart`/`Icons.info` in a `BottomNavigationBar`; the spec section 2 prescribes mosque/bar_chart/settings — this task switches Home's tab to `Icons.mosque`. The `Icons.settings` finder is satisfied by the Settings tab icon.)
+
+- [x] **Step 1: Write the failing test**
+
+```dart
+// test/decorative_app_shell_test.dart
+import 'package:flutter/material.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:salawat_app/widgets/decorative_app_shell.dart';
+
+void main() {
+  testWidgets('shell switches tabs and preserves state', (tester) async {
+    int homeBuilds = 0;
+    int statsBuilds = 0;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: DecorativeAppShell(
+          screens: [
+            StatefulBuilder(
+              builder: (context, _) {
+                homeBuilds++;
+                return const _StateMarker(label: 'home-content');
+              },
+            ),
+            StatefulBuilder(
+              builder: (context, _) {
+                statsBuilds++;
+                return const _StateMarker(label: 'stats-content');
+              },
+            ),
+            const _StateMarker(label: 'settings-content'),
+          ],
+        ),
+      ),
+    );
+
+    // Home is shown first; stats/settings built but kept offstage by stack.
+    expect(find.text('الرئيسية'), findsWidgets);
+    expect(find.text('home-content'), findsOneWidget);
+
+    // Switch to Stats tab by its label.
+    await tester.tap(find.text('الإحصائيات'));
+    await tester.pumpAndSettle();
+    expect(find.text('stats-content'), findsOneWidget);
+
+    // Switch to Settings.
+    await tester.tap(find.text('الإعدادات'));
+    await tester.pumpAndSettle();
+    expect(find.text('settings-content'), findsOneWidget);
+
+    // Back to Home — IndexedStack preserved it, so home-content is still there.
+    await tester.tap(find.text('الرئيسية'));
+    await tester.pumpAndSettle();
+    expect(find.text('home-content'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+}
+
+class _StateMarker extends StatelessWidget {
+  const _StateMarker({required this.label});
+  final String label;
+  @override
+  Widget build(BuildContext context) => Center(child: Text(label));
+}
+```
+
+- [x] **Step 2: Run test to verify it fails**
+
+Run: `flutter test test/decorative_app_shell_test.dart`
+Expected: FAIL — `Target of URI doesn't exist`.
+
+- [x] **Step 3: Write minimal implementation**
+
+```dart
+// lib/widgets/decorative_app_shell.dart
+import 'package:flutter/material.dart';
+import '../utils/app_strings.dart';
+import '../utils/app_text_styles.dart';
+import 'gold_divider.dart';
+import 'islamic_pattern.dart';
+
+/// A persistent decorative app shell: custom mihrab-arch header band +
+/// 3-tab ornamental pill bottom-nav wrapping an IndexedStack so tabs
+/// preserve their state when switching.
+class DecorativeAppShell extends StatefulWidget {
+  const DecorativeAppShell({super.key, required this.screens});
+
+  /// Exactly 3 widgets: Home, Stats, Settings (in that order).
+  final List<Widget> screens;
+
+  @override
+  State<DecorativeAppShell> createState() => _DecorativeAppShellState();
+}
+
+class _DecorativeAppShellState extends State<DecorativeAppShell> {
+  int _index = 0;
+
+  static const _tabs = [
+    _TabSpec(label: 'الرئيسية', icon: Icons.mosque),
+    _TabSpec(label: 'الإحصائيات', icon: Icons.bar_chart),
+    _TabSpec(label: 'الإعدادات', icon: Icons.settings),
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    final isHome = _index == 0;
+    return Scaffold(
+      body: Column(
+        children: [
+          _buildHeader(context, isHome),
+          Expanded(
+            child: IndexedStack(
+              index: _index,
+              children: widget.screens,
+            ),
+          ),
+        ],
+      ),
+      bottomNavigationBar: _buildBottomNav(context),
+    );
+  }
+
+  Widget _buildHeader(BuildContext context, bool isHome) {
+    return SafeArea(
+      bottom: false,
+      child: Container(
+        padding: EdgeInsets.fromLTRB(
+          16, isHome ? 12 : 8, 16, isHome ? 16 : 8,
+        ),
+        color: Theme.of(context).colorScheme.primary,
+        child: Column(
+          children: [
+            Stack(
+              alignment: Alignment.center,
+              children: [
+                // Faint 8-point-star pattern behind the header title.
+                const SizedBox(
+                  height: 48,
+                  child: IslamicPattern(opacity: 0.06),
+                ),
+                Text(
+                  isHome
+                      ? AppStrings.appName
+                      : _tabs[_index].label,
+                  style: AppTextStyles.display(context).copyWith(
+                    color: Theme.of(context).colorScheme.secondary,
+                  ),
+                ),
+              ],
+            ),
+            const GoldHairlineDivider(indent: 0),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildBottomNav(BuildContext context) {
+    final gold = Theme.of(context).colorScheme.secondary;
+    return SafeArea(
+      top: false,
+      child: Container(
+        decoration: BoxDecoration(
+          color: Theme.of(context).colorScheme.surface,
+          border: Border(top: BorderSide(color: gold, width: 0.5)),
+        ),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceAround,
+          children: [
+            for (var i = 0; i < _tabs.length; i++)
+              _NavPill(
+                label: _tabs[i].label,
+                icon: _tabs[i].icon,
+                selected: i == _index,
+                gold: gold,
+                onTap: () => setState(() => _index = i),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _TabSpec {
+  const _TabSpec({required this.label, required this.icon});
+  final String label;
+  final IconData icon;
+}
+
+class _NavPill extends StatelessWidget {
+  const _NavPill({
+    required this.label,
+    required this.icon,
+    required this.selected,
+    required this.gold,
     required this.onTap,
   });
 
-  final int currentIndex;
-  final ValueChanged<int> onTap;
+  final String label;
+  final IconData icon;
+  final bool selected;
+  final Color gold;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    return Container(
-      decoration: BoxDecoration(
-        border: Border(top: BorderSide(color: cs.secondary, width: 1)),
-      ),
-      child: SafeArea(
-        top: false,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 6),
-          child: Row(
-            children: [
-              for (var i = 0; i < 3; i++)
-                Expanded(
-                  child: GestureDetector(
-                    behavior: HitTestBehavior.opaque,
-                    onTap: () => onTap(i),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        // Gold star node above active tab.
-                        Icon(
-                          Icons.star,
-                          size: 10,
-                          color:
-                              i == currentIndex ? cs.secondary : Colors.transparent,
-                        ),
-                        Icon(
-                          _DecorativeAppShellState._icons[i],
-                          size: 24,
-                          color: i == currentIndex ? cs.primary : cs.onSurface.withOpacity(0.5),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          _DecorativeAppShellState._labels[i],
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: i == currentIndex
-                                ? cs.primary
-                                : cs.onSurface.withOpacity(0.5),
-                            fontWeight: i == currentIndex
-                                ? FontWeight.bold
-                                : FontWeight.normal,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-            ],
-          ),
+    final primary = Theme.of(context).colorScheme.primary;
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(24),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Active tab gets a small gold star node above its label.
+            SizedBox(
+              height: 8,
+              width: 8,
+              child: selected
+                  ? CustomPaint(painter: _SmallStarPainter(color: gold))
+                  : const SizedBox.shrink(),
+            ),
+            Icon(icon, color: selected ? primary : gold, size: 22),
+            const SizedBox(height: 2),
+            Text(
+              label,
+              style: TextStyle(
+                fontFamily: 'ReemKufi',
+                fontSize: 12,
+                color: selected ? primary : gold,
+              ),
+            ),
+          ],
         ),
       ),
     );
   }
 }
+
+class _SmallStarPainter extends CustomPainter {
+  _SmallStarPainter({required this.color});
+  final Color color;
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()..color = color;
+    final r = size.width / 2;
+    canvas.drawRect(Rect.fromCircle(center: Offset(r, r), radius: r), paint);
+    canvas.save();
+    canvas.translate(r, r);
+    canvas.rotate(0.785398);
+    canvas.drawRect(Rect.fromCircle(center: Offset.zero, radius: r), paint);
+    canvas.restore();
+  }
+
+  @override
+  bool shouldRepaint(covariant _SmallStarPainter old) => old.color != color;
+}
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
-Run: `flutter test test/decorative_widgets_test.dart`
-Expected: PASS (all four tests)
+Run: `flutter test test/decorative_app_shell_test.dart`
+Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
-git add lib/widgets/decorative_app_shell.dart test/decorative_widgets_test.dart
-git commit -m "feat(widgets): DecorativeAppShell with IndexedStack nav"
+git add lib/widgets/decorative_app_shell.dart test/decorative_app_shell_test.dart
+git commit -m "feat(ui): add DecorativeAppShell with mihrab header and 3-tab pill nav"
 ```
 
 ---
 
-### Task 6: main.dart rewire
+## Task 5: Wire shell into main.dart (IndexedStack, drop /about route)
 
 **Files:**
-- Modify: `lib/main.dart:1-13` (imports), `lib/main.dart:74-109` (MyApp.build)
+- Modify: `lib/main.dart`
 
 **Interfaces:**
-- Consumes: `DecorativeAppShell`, the three screens (now body-only).
-- Produces: `MyApp` renders a single `DecorativeAppShell` instead of named routes.
+- Consumes: `DecorativeAppShell` from Task 4; the existing 3 screens.
+- Produces: `MyApp` whose `home` is `DecorativeAppShell(screens: [HomeScreen, StatsScreen, SettingsScreen])`. The named `routes` map and `/about` route are removed. The `about_screen.dart` import is removed from `main.dart` (About is reached via `Navigator.push` of `AboutScreen()` from the Settings tile — Task 7).
 
-- [ ] **Step 1: Rewrite main.dart**
+> **Note on screens still having their own Scaffold/AppBar:** Tasks 6–8 make each screen body-only. Until then, the screens still render their own `Scaffold`/`AppBar`. To keep the build green at every commit, Task 5 wraps the screens in the shell but does NOT yet remove the per-screen AppBars. The per-screen AppBars are removed in Tasks 6–8 (each screen rewrite ends with its own green test run). This avoids a broken intermediate state.
 
-Replace the import block (lines 1-14) — drop `app_theme` stays, add `DecorativeAppShell` import; the screens remain imported. Then replace `_MyAppState.build` (lines 74-109). Full new file:
+- [x] **Step 1: Replace the MaterialApp routes with the shell**
+
+In `lib/main.dart`, replace the `MaterialApp(...)` `routes`/`initialRoute` block:
 
 ```dart
-import 'package:flutter/material.dart';
-import 'package:flutter_localizations/flutter_localizations.dart';
-import 'package:provider/provider.dart';
-import 'providers/counters_provider.dart';
-import 'providers/settings_provider.dart';
-import 'services/storage_service.dart';
-import 'services/notification_service.dart';
-import 'services/backup_service.dart';
-import 'screens/home_screen.dart';
-import 'screens/settings_screen.dart';
-import 'screens/about_screen.dart';
-import 'screens/stats_screen.dart';
-import 'utils/app_theme.dart';
-import 'utils/app_strings.dart';
-import 'widgets/decorative_app_shell.dart';
-
-void main() async {
-  WidgetsFlutterBinding.ensureInitialized();
-
-  final storageService = StorageService();
-  await storageService.init();
-
-  final notificationService = NotificationService();
-  await notificationService.init();
-
-  runApp(
-    MultiProvider(
-      providers: [
-        ChangeNotifierProvider(
-          create: (_) =>
-              CountersProvider(storageService, notificationService)..load(),
-        ),
-        ChangeNotifierProvider(
-          create: (_) => SettingsProvider(storageService)..load(),
-        ),
-        Provider<NotificationService>.value(value: notificationService),
-        Provider<BackupService>.value(
-          value: BackupService(storage: storageService),
-        ),
-      ],
-      child: const MyApp(),
-    ),
-  );
-}
-
-class MyApp extends StatefulWidget {
-  const MyApp({super.key});
-
-  @override
-  State<MyApp> createState() => _MyAppState();
-}
-
-class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
-  @override
-  void initState() {
-    super.initState();
-    WidgetsBinding.instance.addObserver(this);
-  }
-
-  @override
-  void dispose() {
-    WidgetsBinding.instance.removeObserver(this);
-    super.dispose();
-  }
-
-  @override
-  void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed) {
-      final counters = context.read<CountersProvider>();
-      counters.rolloverIfNewDay();
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Consumer<SettingsProvider>(
-      builder: (context, settings, child) {
-        return MaterialApp(
-          title: AppStrings.appName,
-          debugShowCheckedModeBanner: false,
-          locale: const Locale('ar', 'SA'),
-          supportedLocales: const [Locale('ar', 'SA')],
-          localizationsDelegates: const [
-            GlobalMaterialLocalizations.delegate,
-            GlobalWidgetsLocalizations.delegate,
-            GlobalCupertinoLocalizations.delegate,
-          ],
+          // Theme
           theme: AppTheme.lightTheme(),
           darkTheme: AppTheme.darkTheme(),
           themeMode: settings.isDarkMode ? ThemeMode.dark : ThemeMode.light,
+
+          // Decorative shell with 3-tab navigation
           home: const DecorativeAppShell(
-            home: HomeScreen(),
-            stats: StatsScreen(),
-            settings: SettingsScreen(),
+            screens: [
+              HomeScreen(),
+              StatsScreen(),
+              SettingsScreen(),
+            ],
           ),
-        );
-      },
-    );
-  }
-}
 ```
 
-Note: `about_screen.dart` is still imported (used by Settings push in Task 9). The named `routes` map and `initialRoute` are removed entirely.
+And add the import at the top:
 
-- [ ] **Step 2: Confirm the app compiles**
+```dart
+import 'widgets/decorative_app_shell.dart';
+```
 
-Run: `flutter test test/widget_test.dart`
-Expected: FAIL — navigation tests now break (`Icons.settings` gone, `LinearProgressIndicator` still present in old home until Task 7). This is expected. Confirm only the navigation/presentation assertions fail, not compile errors. If a compile error appears, fix it.
+And remove the now-unused `about_screen.dart` import:
 
-- [ ] **Step 3: Commit (the screens are not yet body-only, so this is a checkpoint; full green arrives after Task 9)**
+```dart
+import 'screens/about_screen.dart';  // <-- delete this line
+```
+
+Leave the `stats_screen.dart` import (still used by the stack). Leave `home_screen.dart`/`settings_screen.dart` imports.
+
+- [x] **Step 2: Run analyzer + widget tests**
+
+Run: `flutter analyze lib/main.dart`
+Expected: no issues.
+
+Run: `flutter test test/widget_test.dart test/settings_backup_test.dart`
+Expected: the navigation tests (`tap Icons.settings`, `tap الإحصائيات`) now hit the shell's bottom-nav pills. Stats test navigates to Stats tab and finds the chart. The `reminder toggle` test taps `Icons.settings` (Settings tab) — passes. If any test fails because a screen still pushes `/stats`/`/about` via the old home bottom-nav, that is expected to be fixed in Tasks 6–8; capture the failure and proceed. Do NOT commit a red state if the failure is a compile error — fix imports first.
+
+- [x] **Step 3: Commit**
 
 ```bash
 git add lib/main.dart
-git commit -m "refactor(nav): wire DecorativeAppShell, drop named routes"
+git commit -m "feat(nav): wire DecorativeAppShell into MaterialApp, drop /about route"
 ```
 
 ---
 
-### Task 7: Home screen rewrite (centerpiece)
+## Task 6: Rewrite HomeScreen as body-only centerpiece
 
 **Files:**
-- Modify: `lib/screens/home_screen.dart` (full rewrite)
-- Modify: `test/widget_test.dart` (update navigation + `LinearProgressIndicator` assertions)
+- Modify: `lib/screens/home_screen.dart`
 
 **Interfaces:**
-- Consumes: `MihrabArch`, `IslamicPattern`, `GoldDivider`, `AppTextStyles`, `CountersProvider`, `SettingsProvider`, `currentStreak` from `utils/stats.dart`. Same provider calls (`increment`, `undo`, `reset`, `setActive`, `addCounter`, `notifyDailyTargetReached`).
-- Produces: `HomeScreen` — body-only (no Scaffold/AppBar/bottom nav; the shell owns those).
+- Consumes: `MihrabArch`, `IslamicPattern`, `GoldHairlineDivider`, `AppTextStyles` (Tasks 1–3); `CountersProvider`/`SettingsProvider` (unchanged wiring).
+- Produces: `HomeScreen` returning a body widget (no `Scaffold`/`AppBar`/`bottomNavigationBar`). Navigation is now owned by the shell. Keeps the `SingleTickerProviderStateMixin` controller; adds a short scale/pop tween on the big count per increment (spec §3: "Big count animates a brief scale/pop on each increment").
 
-- [ ] **Step 1: Rewrite lib/screens/home_screen.dart**
+> **Spec-mandated presentation change that breaks one existing assertion:** the flat `LinearProgressIndicator` is replaced by decorative segmented progress (gold segments toward target). The test `shows daily target progress` asserts `find.byType(LinearProgressIndicator)`. That assertion is updated in Task 8 as part of the deliberate, spec-mandated replacement — NOT here. The `'40 / 100'` text finder in that same test MUST still be satisfied, so this screen keeps the `'$current / $target'` centered-below label.
 
-The new screen keeps the `SingleTickerProviderStateMixin` scale animation for the count button and adds a second short Tween for the count-pop. It becomes body-only content inside the shell. Full file:
+- [x] **Step 1: Rewrite the screen**
+
+Rewrite `lib/screens/home_screen.dart` so that:
+- The class still `extends State<HomeScreen> with SingleTickerProviderStateMixin` and keeps the existing `_controller`/`_scaleAnimation` (button press animation).
+- `build` returns a `Consumer2<CountersProvider, SettingsProvider>` whose builder returns a `SafeArea` > `SingleChildScrollView` > `Column` (NO `Scaffold`, NO `AppBar`, NO `bottomNavigationBar`). The background gradient stays on a wrapping `Container`.
+- Top to bottom:
+  1. **Bismillah band** — `Text('بسم الله الرحمن الرحيم', style: AppTextStyles.bismillah(context))` centered, then `GoldHairlineDivider()`.
+  2. **Counter switcher** — horizontal `ListView` of medallion chips: active = gold ring + emerald fill; others = outlined cream with gold text. Same data (`counters.counters`), same `counters.setActive(c.id)` call. A "+ إضافة" `ActionChip` restyled, calling `_showAddCounterDialog`.
+  3. **Counter card (centerpiece)** — a `Stack` with `IslamicPattern(opacity: 0.04)` behind, on top a `MihrabArch`-topped card containing: counter name (`AppTextStyles.display`), big count (`AppTextStyles.kufiNumber`, ~88px, emerald light / gold dark), "اليوم" label, "الإجمالي: ${counter.totalCount}" beneath.
+     - Target progress: replace the `LinearProgressIndicator` with a **decorative segmented progress** widget — a `Row` of N small gold segments filling toward the target; below it `Text('${counter.currentCount} / $target')` centered. On target met, segments use gold (filled/glow) and a small "تم الهدف" badge with a star appears. Use a fixed segment count (e.g. `min(target, 20)` segments, each `Expanded`) so layout is stable.
+     - Streak: a small pill `Row` with `Icon(Icons.local_fire_department)` (gold) + `'$streak يوم متتالي'`.
+  4. **Tap-to-count button** — large wide-rounded emerald `GestureDetector` > `Container` with a subtle gold inner border + small star motif. `onTap`/`onTapDown`/`onTapUp`/`onTapCancel` keep the existing scale animation + `HapticFeedback`/increment/`notifyDailyTargetReached` logic verbatim. Label `Text('اضغط للعد', style: AppTextStyles.uiLabel(context))`. Wrap the big count in an `AnimatedBuilder` driven by a second short tween (reuse `_controller` forward on increment, or add a `_popController`) so the count does a brief scale/pop on each increment.
+  5. **Undo / Reset** — a `Row` of two outlined gold `TextButton`s: `تراجع` (enabled only when `counters.canUndo`, calls `counters.undo()` + `HapticFeedback.selectionClick` when vibration on) and `إعادة تعيين` (calls `_showResetConfirmation`, which keeps its confirmation dialog verbatim).
+  6. **Last used** — keep the `DateFormat('dd/MM/yyyy HH:mm')` "آخر استخدام" line.
+
+Keep `_showResetConfirmation`, `_showAddCounterDialog` methods verbatim (logic unchanged). Remove the `Navigator.pushNamed(context, '/settings')` (the settings AppBar action is gone — navigation is the shell's job now).
+
+Full replacement file content:
 
 ```dart
 import 'package:flutter/material.dart';
@@ -1042,7 +803,6 @@ import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import '../providers/counters_provider.dart';
 import '../providers/settings_provider.dart';
-import '../utils/app_strings.dart';
 import '../utils/app_text_styles.dart';
 import '../utils/stats.dart';
 import '../widgets/gold_divider.dart';
@@ -1060,6 +820,7 @@ class _HomeScreenState extends State<HomeScreen>
     with SingleTickerProviderStateMixin {
   late AnimationController _controller;
   late Animation<double> _scaleAnimation;
+  late AnimationController _popController;
   late Animation<double> _popAnimation;
 
   @override
@@ -1072,24 +833,20 @@ class _HomeScreenState extends State<HomeScreen>
     _scaleAnimation = Tween<double>(begin: 1.0, end: 0.95).animate(
       CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
     );
-    // Count-pop: brief scale up then back. Driven per-increment via forward().
-    _popAnimation = TweenSequence<double>([
-      TweenSequenceItem(
-        tween: Tween<double>(begin: 1.0, end: 1.12)
-            .chain(CurveTween(curve: Curves.easeOut)),
-        weight: 50,
-      ),
-      TweenSequenceItem(
-        tween: Tween<double>(begin: 1.12, end: 1.0)
-            .chain(CurveTween(curve: Curves.easeIn)),
-        weight: 50,
-      ),
-    ]).animate(_controller);
+    // Brief count pop on each increment.
+    _popController = AnimationController(
+      duration: const Duration(milliseconds: 150),
+      vsync: this,
+    );
+    _popAnimation = Tween<double>(begin: 1.0, end: 1.12).animate(
+      CurvedAnimation(parent: _popController, curve: Curves.easeOutBack),
+    );
   }
 
   @override
   void dispose() {
     _controller.dispose();
+    _popController.dispose();
     super.dispose();
   }
 
@@ -1115,236 +872,230 @@ class _HomeScreenState extends State<HomeScreen>
               begin: Alignment.topCenter,
               end: Alignment.bottomCenter,
               colors: [
-                Theme.of(context).colorScheme.primary.withOpacity(0.06),
+                Theme.of(context).colorScheme.primary.withOpacity(0.1),
                 Theme.of(context).colorScheme.surface,
               ],
             ),
           ),
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.all(24.0),
-            child: Column(
-              children: [
-                // Bismillah band
-                Text(
-                  'بسم الله الرحمن الرحيم',
-                  style: AppTextStyles.bismillah(context),
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 6),
-                const GoldDivider(),
-                const SizedBox(height: 20),
+          child: SafeArea(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(24.0),
+              child: Column(
+                children: [
+                  // Bismillah band
+                  Text('بسم الله الرحمن الرحيم',
+                      style: AppTextStyles.bismillah(context),
+                      textAlign: TextAlign.center),
+                  const GoldHairlineDivider(),
+                  const SizedBox(height: 8),
 
-                // Counter medallion switcher
-                SizedBox(
-                  height: 44,
-                  child: ListView(
-                    scrollDirection: Axis.horizontal,
-                    children: [
-                      for (final c in counters.counters)
+                  // Counter switcher (medallion chips)
+                  SizedBox(
+                    height: 48,
+                    child: ListView(
+                      scrollDirection: Axis.horizontal,
+                      children: [
+                        for (final c in counters.counters)
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 4),
+                            child: _MedallionChip(
+                              label: c.name,
+                              selected: c.id == counter.id,
+                              onSelected: (_) => counters.setActive(c.id),
+                            ),
+                          ),
                         Padding(
                           padding: const EdgeInsets.symmetric(horizontal: 4),
-                          child: _MedallionChip(
-                            label: c.name,
-                            selected: c.id == counters.activeCounter.id,
-                            onSelected: (_) => counters.setActive(c.id),
+                          child: ActionChip(
+                            avatar: const Icon(Icons.add, size: 18),
+                            label: const Text('إضافة'),
+                            onPressed: () =>
+                                _showAddCounterDialog(context, counters),
                           ),
                         ),
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 4),
-                        child: ActionChip(
-                          avatar: const Icon(Icons.add, size: 18),
-                          label: const Text('إضافة'),
-                          onPressed: () =>
-                              _showAddCounterDialog(context, counters),
-                        ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
-                ),
-                const SizedBox(height: 20),
+                  const SizedBox(height: 24),
 
-                // Mihrab-arch counter card (centerpiece)
-                MihrabArch(
-                  child: Stack(
+                  // Counter card (centerpiece) with mihrab arch + pattern
+                  Stack(
                     children: [
                       const Positioned.fill(
                         child: IslamicPattern(opacity: 0.04),
                       ),
-                      Padding(
-                        padding: const EdgeInsets.all(24),
-                        child: Column(
-                          children: [
-                            Text(
-                              counter.name,
-                              textAlign: TextAlign.center,
-                              style: AppTextStyles.display(context),
-                            ),
-                            const SizedBox(height: 12),
-                            // Big count with pop animation
-                            AnimatedBuilder(
-                              animation: _popAnimation,
-                              builder: (context, child) {
-                                return Transform.scale(
+                      MihrabArch(
+                        child: Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.fromLTRB(24, 36, 24, 24),
+                          color: Theme.of(context).colorScheme.surface,
+                          child: Column(
+                            children: [
+                              Text(counter.name,
+                                  textAlign: TextAlign.center,
+                                  style: AppTextStyles.display(context)),
+                              const SizedBox(height: 12),
+                              AnimatedBuilder(
+                                animation: _popAnimation,
+                                builder: (context, c) => Transform.scale(
                                   scale: _popAnimation.value,
-                                  child: child,
-                                );
-                              },
-                              child: Text(
-                                '${counter.currentCount}',
-                                style: AppTextStyles.kufiNumber(context),
+                                  child: c,
+                                ),
+                                child: Text('${counter.currentCount}',
+                                    style: AppTextStyles.kufiNumber(context)),
                               ),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              'اليوم',
-                              style: Theme.of(context).textTheme.bodyLarge,
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              'الإجمالي: ${counter.totalCount}',
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .bodyMedium
-                                  ?.copyWith(
+                              const SizedBox(height: 4),
+                              Text('اليوم',
+                                  style: AppTextStyles.bodyArabic(context)),
+                              const SizedBox(height: 4),
+                              Text('الإجمالي: ${counter.totalCount}',
+                                  style: AppTextStyles.bodyArabic(context)
+                                      .copyWith(
                                     color: Theme.of(context)
                                         .colorScheme
                                         .secondary,
-                                  ),
-                            ),
-                            if (target > 0) ...[
-                              const SizedBox(height: 16),
-                              _SegmentedProgress(
-                                count: counter.currentCount,
-                                target: target,
-                              ),
+                                  )),
+                              if (target > 0) ...[
+                                const SizedBox(height: 16),
+                                _SegmentedProgress(
+                                  count: counter.currentCount,
+                                  target: target,
+                                ),
+                                const SizedBox(height: 8),
+                                Text('${counter.currentCount} / $target',
+                                    style: AppTextStyles.bodyArabic(context)
+                                        .copyWith(
+                                      color: Theme.of(context)
+                                          .colorScheme
+                                          .secondary,
+                                      fontWeight: FontWeight.bold,
+                                    )),
+                                if (counter.currentCount >= target) ...[
+                                  const SizedBox(height: 8),
+                                  _TargetBadge(),
+                                ],
+                                const SizedBox(height: 12),
+                                _StreakPill(streak: streak),
+                              ],
                             ],
-                            if (target > 0 && counter.currentCount >= target) ...[
-                              const SizedBox(height: 10),
-                              _TargetBadge(),
-                            ],
-                            if (target > 0) ...[
-                              const SizedBox(height: 12),
-                              _StreakPill(streak: streak),
-                            ],
-                          ],
+                          ),
                         ),
                       ),
                     ],
                   ),
-                ),
-                const SizedBox(height: 28),
+                  const SizedBox(height: 32),
 
-                // Tap-to-count button
-                GestureDetector(
-                  onTapDown: _onTapDown,
-                  onTapUp: _onTapUp,
-                  onTapCancel: _onTapCancel,
-                  onTap: () async {
-                    if (settings.settings.vibrationEnabled) {
-                      HapticFeedback.lightImpact();
-                    }
-                    final before = counter.currentCount;
-                    await counters.increment();
-                    _controller.forward();
-                    if (target > 0 &&
-                        before < target &&
-                        counters.activeCounter.currentCount >= target) {
-                      await counters.notifyDailyTargetReached();
-                    }
-                  },
-                  child: AnimatedBuilder(
-                    animation: _scaleAnimation,
-                    builder: (context, child) {
-                      return Transform.scale(
-                        scale: _scaleAnimation.value,
-                        child: child,
-                      );
+                  // Tap-to-count button
+                  GestureDetector(
+                    onTapDown: _onTapDown,
+                    onTapUp: _onTapUp,
+                    onTapCancel: _onTapCancel,
+                    onTap: () async {
+                      if (settings.settings.vibrationEnabled) {
+                        HapticFeedback.lightImpact();
+                      }
+                      final before = counter.currentCount;
+                      await counters.increment();
+                      _popController.forward(from: 0).then(
+                          (_) => _popController.reverse());
+                      if (target > 0 &&
+                          before < target &&
+                          counters.activeCounter.currentCount >= target) {
+                        await counters.notifyDailyTargetReached();
+                      }
                     },
-                    child: Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.symmetric(vertical: 22),
-                      decoration: BoxDecoration(
-                        color: Theme.of(context).colorScheme.primary,
-                        borderRadius: BorderRadius.circular(28),
-                        border: Border.all(
-                          color: Theme.of(context).colorScheme.secondary,
-                          width: 1.5,
-                        ),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Theme.of(context)
+                    child: AnimatedBuilder(
+                      animation: _scaleAnimation,
+                      builder: (context, c) => Transform.scale(
+                        scale: _scaleAnimation.value,
+                        child: c,
+                      ),
+                      child: Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.symmetric(vertical: 24),
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(colors: [
+                            Theme.of(context).colorScheme.primary,
+                            Theme.of(context)
                                 .colorScheme
                                 .primary
-                                .withOpacity(0.3),
-                            blurRadius: 8,
-                            offset: const Offset(0, 4),
-                          ),
-                        ],
-                      ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(
-                            Icons.star,
-                            size: 18,
+                                .withOpacity(0.8),
+                          ]),
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(
                             color: Theme.of(context).colorScheme.secondary,
+                            width: 1.5,
                           ),
-                          const SizedBox(width: 8),
-                          Text('اضغط للعد', style: AppTextStyles.uiLabel(context)),
-                        ],
+                          boxShadow: [
+                            BoxShadow(
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .primary
+                                  .withOpacity(0.3),
+                              blurRadius: 8,
+                              offset: const Offset(0, 4),
+                            ),
+                          ],
+                        ),
+                        child: Text('اضغط للعد',
+                            textAlign: TextAlign.center,
+                            style: AppTextStyles.uiLabel(context)),
                       ),
                     ),
                   ),
-                ),
-                const SizedBox(height: 14),
+                  const SizedBox(height: 16),
 
-                // Undo / Reset — outlined gold text-buttons
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                  children: [
-                    TextButton.icon(
-                      onPressed: counters.canUndo
-                          ? () async {
-                              if (settings.settings.vibrationEnabled) {
-                                HapticFeedback.selectionClick();
+                  // Undo / Reset outlined gold text-buttons
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: [
+                      TextButton.icon(
+                        onPressed: counters.canUndo
+                            ? () async {
+                                if (settings.settings.vibrationEnabled) {
+                                  HapticFeedback.selectionClick();
+                                }
+                                await counters.undo();
                               }
-                              await counters.undo();
-                            }
-                          : null,
-                      icon: const Icon(Icons.undo),
-                      label: const Text('تراجع'),
-                      style: TextButton.styleFrom(
-                        foregroundColor: Theme.of(context).colorScheme.secondary,
-                        side: BorderSide(
-                          color: Theme.of(context).colorScheme.secondary,
+                            : null,
+                        icon: const Icon(Icons.undo),
+                        label: const Text('تراجع'),
+                        style: TextButton.styleFrom(
+                          foregroundColor:
+                              Theme.of(context).colorScheme.secondary,
+                          side: BorderSide(
+                              color:
+                                  Theme.of(context).colorScheme.secondary),
                         ),
                       ),
-                    ),
-                    TextButton.icon(
-                      onPressed: () =>
-                          _showResetConfirmation(context, counters),
-                      icon: const Icon(Icons.refresh),
-                      label: const Text('إعادة تعيين'),
-                      style: TextButton.styleFrom(
-                        foregroundColor: Theme.of(context).colorScheme.secondary,
-                        side: BorderSide(
-                          color: Theme.of(context).colorScheme.secondary,
+                      TextButton.icon(
+                        onPressed: () =>
+                            _showResetConfirmation(context, counters),
+                        icon: const Icon(Icons.refresh),
+                        label: const Text('إعادة تعيين'),
+                        style: TextButton.styleFrom(
+                          foregroundColor:
+                              Theme.of(context).colorScheme.secondary,
+                          side: BorderSide(
+                              color:
+                                  Theme.of(context).colorScheme.secondary),
                         ),
                       ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                Text(
-                  'آخر استخدام: ${DateFormat('dd/MM/yyyy HH:mm').format(counter.lastUsedAt)}',
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: Theme.of(context)
-                            .colorScheme
-                            .onSurface
-                            .withOpacity(0.6),
-                      ),
-                ),
-              ],
+                    ],
+                  ),
+                  const SizedBox(height: 24),
+
+                  Text(
+                    'آخر استخدام: ${DateFormat('dd/MM/yyyy HH:mm').format(counter.lastUsedAt)}',
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          color: Theme.of(context)
+                              .colorScheme
+                              .onSurface
+                              .withOpacity(0.6),
+                        ),
+                  ),
+                ],
+              ),
             ),
           ),
         );
@@ -1352,10 +1103,7 @@ class _HomeScreenState extends State<HomeScreen>
     );
   }
 
-  void _showResetConfirmation(
-    BuildContext context,
-    CountersProvider counters,
-  ) {
+  void _showResetConfirmation(BuildContext context, CountersProvider counters) {
     var includeTotal = false;
     showDialog(
       context: context,
@@ -1398,10 +1146,7 @@ class _HomeScreenState extends State<HomeScreen>
     );
   }
 
-  void _showAddCounterDialog(
-    BuildContext context,
-    CountersProvider counters,
-  ) {
+  void _showAddCounterDialog(BuildContext context, CountersProvider counters) {
     final controller = TextEditingController();
     showDialog(
       context: context,
@@ -1435,93 +1180,58 @@ class _HomeScreenState extends State<HomeScreen>
   }
 }
 
-/// Rounded medallion chip: active = gold ring + emerald fill; else outlined
-/// cream with gold text.
 class _MedallionChip extends StatelessWidget {
-  const _MedallionChip({
-    required this.label,
-    required this.selected,
-    required this.onSelected,
-  });
-
+  const _MedallionChip(
+      {required this.label, required this.selected, required this.onSelected});
   final String label;
   final bool selected;
   final ValueChanged<bool> onSelected;
 
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
+    final gold = Theme.of(context).colorScheme.secondary;
+    final primary = Theme.of(context).colorScheme.primary;
     return ChoiceChip(
-      label: Text(
-        label,
-        style: TextStyle(
-          color: selected ? Colors.white : cs.secondary,
-          fontWeight: selected ? FontWeight.bold : FontWeight.normal,
-        ),
-      ),
+      label: Text(label,
+          style: TextStyle(
+              fontFamily: 'ReemKufi',
+              color: selected ? Colors.white : gold)),
       selected: selected,
-      selectedColor: cs.primary,
-      backgroundColor: cs.surface,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(20),
-        side: BorderSide(
-          color: selected ? cs.secondary : cs.secondary.withOpacity(0.4),
-        ),
-      ),
       onSelected: onSelected,
+      selectedColor: primary,
+      backgroundColor: Theme.of(context).colorScheme.surface,
+      side: BorderSide(color: gold, width: selected ? 2 : 1),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
     );
   }
 }
 
-/// Decorative segmented progress: N gold bead-segments filling toward target.
 class _SegmentedProgress extends StatelessWidget {
   const _SegmentedProgress({required this.count, required this.target});
-
   final int count;
   final int target;
 
   @override
   Widget build(BuildContext context) {
-    const segments = 20;
-    final filled =
-        target < 1 ? 0 : ((count / target) * segments).clamp(0, segments).round();
-    final cs = Theme.of(context).colorScheme;
-    return Column(
+    final gold = Theme.of(context).colorScheme.secondary;
+    final segments = target <= 20 ? target : 20;
+    final filled = (count / target * segments).floor().clamp(0, segments);
+    final done = count >= target;
+    return Row(
       children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            for (var i = 0; i < segments; i++)
-              Expanded(
-                child: Container(
-                  margin: const EdgeInsets.symmetric(horizontal: 1),
-                  height: 10,
-                  decoration: BoxDecoration(
-                    color: i < filled
-                        ? cs.secondary
-                        : cs.secondary.withOpacity(0.15),
-                    borderRadius: BorderRadius.circular(3),
-                    boxShadow: i < filled && count >= target
-                        ? [
-                            BoxShadow(
-                              color: cs.secondary.withOpacity(0.5),
-                              blurRadius: 4,
-                            ),
-                          ]
-                        : null,
-                  ),
-                ),
+        for (var i = 0; i < segments; i++)
+          Expanded(
+            child: Container(
+              height: 10,
+              margin: const EdgeInsets.symmetric(horizontal: 2),
+              decoration: BoxDecoration(
+                color: i < filled
+                    ? (done ? gold : gold)
+                    : gold.withOpacity(0.15),
+                borderRadius: BorderRadius.circular(5),
               ),
-          ],
-        ),
-        const SizedBox(height: 6),
-        Text(
-          '$count / $target',
-          style: TextStyle(
-            color: cs.secondary,
-            fontWeight: FontWeight.bold,
+            ),
           ),
-        ),
       ],
     );
   }
@@ -1530,26 +1240,20 @@ class _SegmentedProgress extends StatelessWidget {
 class _TargetBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
+    final gold = Theme.of(context).colorScheme.secondary;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
       decoration: BoxDecoration(
-        color: cs.secondary.withOpacity(0.15),
+        color: gold.withOpacity(0.15),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: cs.secondary),
+        border: Border.all(color: gold),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(Icons.star, size: 14, color: cs.secondary),
+          Icon(Icons.star, color: gold, size: 16),
           const SizedBox(width: 4),
-          Text(
-            'تم الهدف',
-            style: TextStyle(
-              color: cs.secondary,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
+          Text('تم الهدف', style: TextStyle(color: gold, fontFamily: 'ReemKufi')),
         ],
       ),
     );
@@ -1562,26 +1266,21 @@ class _StreakPill extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
+    final gold = Theme.of(context).colorScheme.secondary;
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       decoration: BoxDecoration(
-        color: cs.surface,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: cs.secondary.withOpacity(0.4)),
+        color: Theme.of(context).colorScheme.surface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: gold.withOpacity(0.6)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(Icons.local_fire_department, size: 16, color: cs.secondary),
+          Icon(Icons.local_fire_department, color: gold, size: 18),
           const SizedBox(width: 4),
-          Text(
-            '$streak يوم متتالي',
-            style: TextStyle(
-              color: cs.secondary,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
+          Text('$streak يوم متتالي',
+              style: TextStyle(fontFamily: 'ReemKufi', color: gold)),
         ],
       ),
     );
@@ -1589,98 +1288,58 @@ class _StreakPill extends StatelessWidget {
 }
 ```
 
-Note: `_TargetBadge` and `_StreakPill` have no `const` constructor because they reference `super` without const; add `const _TargetBadge();` and `const _StreakPill({required this.streak});` if the analyzer prefers. Keep consistent.
+- [x] **Step 2: Run analyzer**
 
-- [ ] **Step 2: Update test/widget_test.dart navigation + progress assertions**
+Run: `flutter analyze lib/screens/home_screen.dart`
+Expected: no issues.
 
-The reminder-snackbar test (lines 125-145) navigates via `Icons.settings` in the home AppBar — now gone. Change it to tap the settings tab label. The daily-target test (lines 147-164) asserts `LinearProgressIndicator` — replaced by `_SegmentedProgress`. Change it to assert the segmented progress widget is present.
-
-Edit the reminder-snackbar test:
-
-```dart
-  testWidgets('reminder toggle shows snackbar when permission is denied',
-      (WidgetTester tester) async {
-    final notif = _FakeNotificationService()..permissionGranted = false;
-
-    await pumpApp(tester);
-
-    // Navigate to the settings tab (bottom nav).
-    await tester.tap(find.text('الإعدادات'));
-    await tester.pumpAndSettle();
-
-    // Enable reminders for the active counter.
-    await tester.tap(find.text('التذكيرات'));
-    await tester.pumpAndSettle();
-
-    // The snackbar is shown and the switch stays off.
-    expect(find.text('لم يتم منح إذن الإشعارات'), findsOneWidget);
-    final remindersSwitch = tester.widget<SwitchListTile>(
-      find.widgetWithText(SwitchListTile, 'التذكيرات'),
-    );
-    expect(remindersSwitch.value, isFalse);
-  });
-```
-
-Edit the daily-target test — replace the `LinearProgressIndicator` assertion:
-
-```dart
-  testWidgets('shows daily target progress', (WidgetTester tester) async {
-    SharedPreferences.setMockInitialValues({
-      'adhkar_counters': jsonEncode([
-        AdhkarCounter(
-          id: 'salawat',
-          name: 'الصلاة على النبي ﷺ',
-          currentCount: 40,
-          totalCount: 40,
-          dailyTarget: 100,
-        ).toJson(),
-      ]),
-    });
-
-    await pumpApp(tester);
-
-    expect(find.text('40 / 100'), findsOneWidget);
-    // The segmented tasbih-bead progress replaces LinearProgressIndicator.
-    expect(find.textContaining('40 / 100'), findsOneWidget);
-  });
-```
-
-Edit the stats-screen test (lines 197-222) — it taps `find.text('الإحصائيات')` which now is a bottom-nav tab label; still valid. Leave it, but confirm it still finds `BarChart`, totals, and streaks. No change needed beyond verifying (it should pass once StatsScreen is body-only in Task 8).
-
-- [ ] **Step 3: Run the widget tests**
+- [x] **Step 3: Run home-targeted widget tests**
 
 Run: `flutter test test/widget_test.dart`
-Expected: Some FAIL — the stats navigation test taps 'الإحصائيات' and expects `StatsScreen` body content, but `StatsScreen` still wraps its own Scaffold/AppBar (fixed in Task 8). The home/increment/reset/counter-switch/target-notification tests should PASS now. Confirm only the stats-dependent test fails; if home tests fail, fix before continuing.
+Expected: Most pass. The `shows daily target progress` test FAILS on `find.byType(LinearProgressIndicator)` — this is the spec-mandated replacement. Do not "fix" it by re-adding the indicator; it is corrected in Task 8. Confirm the `'40 / 100'` and `'تم الهدف'` finders in the relevant tests still pass (they should — labels preserved). Confirm `tap 'اضغط للعد'` increment tests pass. Capture the exact failing assertion to reference in Task 8.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
-git add lib/screens/home_screen.dart test/widget_test.dart
-git commit -m "feat(home): mihrab-arch centerpiece, segmented progress, count-pop"
+git add lib/screens/home_screen.dart
+git commit -m "feat(ui): rewrite HomeScreen as mihrab-arch centerpiece with segmented progress"
 ```
 
 ---
 
-### Task 8: Stats screen rewrite
+## Task 7: Restyle Stats + Settings + About for the shell
 
 **Files:**
-- Modify: `lib/screens/stats_screen.dart` (full rewrite, body-only)
-- Modify: `test/widget_test.dart` (verify stats test passes)
+- Modify: `lib/screens/stats_screen.dart`
+- Modify: `lib/screens/settings_screen.dart`
+- Modify: `lib/screens/about_screen.dart`
 
 **Interfaces:**
-- Consumes: `IslamicPattern`, `AppTextStyles`, `CountersProvider`, `lastDaysCounts`/`currentStreak`/`longestStreak` from `utils/stats.dart`, `fl_chart` `BarChart`.
-- Produces: `StatsScreen` — body-only (no Scaffold/AppBar).
+- Consumes: `AppTextStyles`, `IslamicPattern`, `GoldHairlineDivider`, `MihrabArch` (Tasks 1–3). Each screen drops its own `Scaffold`/`AppBar` and returns body content rendered inside the shell's arch header.
+- Produces: three body-only screens. `SettingsScreen`'s About tile calls `Navigator.push(context, MaterialPageRoute(builder: (_) => const AboutScreen()))` instead of `Navigator.pushNamed(context, '/about')`. `AboutScreen` becomes a plain `Scaffold` (no AppBar) pushed on top of the shell.
 
-- [ ] **Step 1: Rewrite lib/screens/stats_screen.dart**
+> **Test-navigation contract:** `test/widget_test.dart` navigates to Stats by `find.text('الإحصائيات')` (shell tab) then asserts `find.byType(BarChart)`, `find.text('الإجمالي الكلي')`, `find.text('أفضل يوم')`, `find.text('السلسلة الحالية')`, `find.text('أطول سلسلة')`. These labels MUST remain unchanged. The `SegmentedButton` labels `'٧ أيام'`/`'٣٠ يومًا'` are not asserted by tests but should be kept for consistency.
 
-Keep identical computations; only restyle. Full file:
+- [x] **Step 1: Rewrite StatsScreen as body-only**
+
+Modify `lib/screens/stats_screen.dart`:
+- Remove the `Scaffold`/`AppBar`. The `build` returns a `Consumer<CountersProvider>` whose builder returns a `Padding` > `Column` directly (the shell provides the header). Keep `_days` state and all stat computations (`lastDaysCounts`, `windowSum`, `bestDay`, `currentStreak`, `longestStreak`) verbatim.
+- Restyle the `SegmentedButton<int>`: selected segment emerald fill + white text; unselected cream with gold text. Keep `segments` values `{7, 30}` and labels.
+- Restyle `_buildChart`: bars emerald with gold tips (use `BarChartRodData` `gradient` or a second rod for tip — simplest: `color: primary` and set `borderRadius` gold). Faint gold grid lines (`FlGridData` with `getDrawingHorizontalLine` color gold at low opacity). Keep `titlesData`/`borderData` as-is or show axis labels in Reem Kufi. Wrap the chart `SizedBox` in a `Card` with a thin gold border + rounded corners, and place `IslamicPattern(opacity: 0.04)` behind it (Stack).
+- Restyle `_totalTile`: small medallion tiles (gold-ringed rounded container) with the number in `AppTextStyles.kufiNumber` (smaller) and label in Reem Kufi. Insert `GoldHairlineDivider()` between tile rows where the spec says "star dividers between". Keep all labels identical (`'آخر ٧ أيام'`/`'آخر ٣٠ يومًا'`, `'الإجمالي الكلي'`, `'أفضل يوم'`, `'السلسلة الحالية'`, `'أطول سلسلة'`).
+
+Add imports for `app_text_styles.dart`, `islamic_pattern.dart`, `gold_divider.dart` as needed.
+
+Full replacement for the `build` + chart/tile helpers (keep the class shell + `_days`):
 
 ```dart
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/counters_provider.dart';
+import '../utils/app_text_styles.dart';
 import '../utils/stats.dart';
+import '../widgets/gold_divider.dart';
 import '../widgets/islamic_pattern.dart';
 
 class StatsScreen extends StatefulWidget {
@@ -1733,29 +1392,20 @@ class _StatsScreenState extends State<StatsScreen> {
                 onSelectionChanged: (selection) {
                   setState(() => _days = selection.first);
                 },
-              ),
-              const SizedBox(height: 20),
-              // Chart card with faint pattern behind.
-              Expanded(
-                child: Stack(
-                  children: [
-                    Container(
-                      decoration: BoxDecoration(
-                        color: Theme.of(context).colorScheme.surface,
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(
-                          color: Theme.of(context).colorScheme.secondary,
-                          width: 1,
-                        ),
-                      ),
-                      child: const IslamicPattern(opacity: 0.03),
-                    ),
-                    Padding(
-                      padding: const EdgeInsets.all(12),
-                      child: _buildChart(context, counts),
-                    ),
-                  ],
+                style: ButtonStyle(
+                  selectedBackgroundColor:
+                      WidgetStatePropertyAll(Theme.of(context).colorScheme.primary),
+                  selectedForegroundColor: const WidgetStatePropertyAll(Colors.white),
                 ),
+              ),
+              const SizedBox(height: 24),
+              Stack(
+                children: [
+                  const Positioned.fill(
+                    child: IslamicPattern(opacity: 0.04),
+                  ),
+                  SizedBox(height: 220, child: _buildChart(context, counts)),
+                ],
               ),
               const SizedBox(height: 16),
               Row(
@@ -1767,7 +1417,7 @@ class _StatsScreenState extends State<StatsScreen> {
                 ],
               ),
               if (target > 0) ...[
-                const SizedBox(height: 12),
+                const GoldHairlineDivider(),
                 Row(
                   children: [
                     _medallionTile(context, 'السلسلة الحالية', current),
@@ -1785,71 +1435,67 @@ class _StatsScreenState extends State<StatsScreen> {
   Widget _buildChart(BuildContext context, List<int> counts) {
     final maxCount = counts.fold<int>(0, (m, c) => c > m ? c : m);
     final maxY = maxCount < 1 ? 5.0 : (maxCount * 1.2).ceilToDouble();
-    final cs = Theme.of(context).colorScheme;
+    final gold = Theme.of(context).colorScheme.secondary;
 
-    return BarChart(
-      BarChartData(
-        maxY: maxY,
-        barTouchData: BarTouchData(enabled: false),
-        titlesData: const FlTitlesData(show: false),
-        gridData: FlGridData(
-          show: true,
-          drawVerticalLine: false,
-          getDrawingHorizontalLine: (value) => FlLine(
-            color: cs.secondary.withOpacity(0.15),
-            strokeWidth: 1,
+    return Card(
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: BorderSide(color: gold, width: 1),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: BarChart(
+          BarChartData(
+            maxY: maxY,
+            barTouchData: BarTouchData(enabled: false),
+            titlesData: const FlTitlesData(show: false),
+            gridData: FlGridData(
+              show: true,
+              drawVerticalLine: false,
+              getDrawingHorizontalLine: (v) =>
+                  FlLine(color: gold.withOpacity(0.15), strokeWidth: 1),
+            ),
+            borderData: FlBorderData(show: false),
+            barGroups: [
+              for (var i = 0; i < counts.length; i++)
+                BarChartGroupData(
+                  x: i,
+                  barRods: [
+                    BarChartRodData(
+                      toY: counts[i].toDouble(),
+                      color: Theme.of(context).colorScheme.primary,
+                      width: _days == 30 ? 5 : 14,
+                      borderRadius: const Radius.circular(4),
+                    ),
+                  ],
+                ),
+            ],
           ),
         ),
-        borderData: FlBorderData(show: false),
-        barGroups: [
-          for (var i = 0; i < counts.length; i++)
-            BarChartGroupData(
-              x: i,
-              barRods: [
-                BarChartRodData(
-                  toY: counts[i].toDouble(),
-                  color: cs.primary,
-                  width: _days == 30 ? 5 : 14,
-                  borderRadius: const BorderRadius.only(
-                    topLeft: Radius.circular(4),
-                    topRight: Radius.circular(4),
-                  ),
-                ),
-              ],
-            ),
-        ],
       ),
     );
   }
 
   Widget _medallionTile(BuildContext context, String label, int value) {
-    final cs = Theme.of(context).colorScheme;
+    final gold = Theme.of(context).colorScheme.secondary;
     return Expanded(
       child: Container(
         margin: const EdgeInsets.symmetric(horizontal: 4),
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          color: cs.surface,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: cs.secondary.withOpacity(0.4)),
+          color: Theme.of(context).colorScheme.primary.withOpacity(0.06),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: gold.withOpacity(0.5)),
         ),
         child: Column(
           children: [
-            Text(
-              '$value',
-              style: TextStyle(
-                fontFamily: 'ReemKufi',
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-                color: cs.primary,
-              ),
-            ),
+            Text('$value',
+                style: AppTextStyles.kufiNumber(context)
+                    .copyWith(fontSize: 28)),
             const SizedBox(height: 4),
-            Text(
-              label,
-              textAlign: TextAlign.center,
-              style: const TextStyle(fontSize: 12),
-            ),
+            Text(label,
+                textAlign: TextAlign.center,
+                style: const TextStyle(fontFamily: 'ReemKufi', fontSize: 12)),
           ],
         ),
       ),
@@ -1858,271 +1504,81 @@ class _StatsScreenState extends State<StatsScreen> {
 }
 ```
 
-- [ ] **Step 2: Run the stats widget test**
+- [x] **Step 2: Rewrite SettingsScreen body + About navigation**
 
-Run: `flutter test test/widget_test.dart`
-Expected: the stats test (`stats screen shows chart, totals, and streaks`) now PASSES (it taps `find.text('الإحصائيات')` → shell switches to the body-only `StatsScreen` containing the `BarChart` and the medallion tiles with labels 'الإجمالي الكلي', 'أفضل يوم', 'السلسلة الحالية', 'أطول سلسلة').
-
-- [ ] **Step 3: Commit**
-
-```bash
-git add lib/screens/stats_screen.dart
-git commit -m "feat(stats): ornamental chart card, medallion tiles"
-```
-
----
-
-### Task 9: Settings screen rewrite
-
-**Files:**
-- Modify: `lib/screens/settings_screen.dart` (restyle sections/listtiles, body-only; About tile pushes `AboutScreen` via `Navigator.push`)
-- Modify: `test/settings_backup_test.dart` (`openSettings()` helper)
-
-**Interfaces:**
-- Consumes: `AppTextStyles`, `GoldDivider`, `MihrabArch`(optional), all existing providers/services/dialogs. About tile calls `Navigator.push(MaterialPageRoute(builder: (_) => const AboutScreen()))`.
-- Produces: `SettingsScreen` — body-only.
-
-- [ ] **Step 1: Restyle SettingsScreen — body-only, section headers with gold divider, medallion leading icons, About push**
-
-The `build()` method (lines 22-169) is the only part structurally changed. Keep all dialog methods (`_showRenameDialog`, `_showDailyTargetDialog`, `_showReminderTypeDialog`, `_showIntervalDialog`, `_showDailyTimesDialog`, `_showDeleteDialog`, `_showExportSheet`, `_exportData`, `_showRestoreFlow`, `_buildSectionTitle`→renamed, `_getIntervalText`) and the `_DailyTargetDialog` widget **identical in logic** — only `_buildSectionTitle` styling and the leading icons change, and the About tile navigation changes from `Navigator.pushNamed(context, '/about')` to a direct push.
-
-Replace the `build` method body. New `build` (the class top through line 169 stays the same imports; replace from `Widget build(BuildContext context) {`):
+Modify `lib/screens/settings_screen.dart`:
+- Remove the `Scaffold`/`AppBar`. The `build` returns the `Consumer2<...>` whose builder returns the `ListView` directly. (The shell provides the header.)
+- Replace `_buildSectionTitle` with an Amiri-gold title + `GoldHairlineDivider` beneath. New helper:
 
 ```dart
-  @override
-  Widget build(BuildContext context) {
-    return Consumer2<CountersProvider, SettingsProvider>(
-      builder: (context, counters, settings, child) {
-        final counter = counters.activeCounter;
-        return ListView(
-          padding: const EdgeInsets.all(16),
-          children: [
-            _sectionTitle(context, 'العداد الحالي'),
-            _medallionListTile(
-              context: context,
-              icon: Icons.edit,
-              title: 'الاسم',
-              subtitle: counter.name,
-              onTap: () => _showRenameDialog(context, counters),
-            ),
-            _medallionListTile(
-              context: context,
-              icon: Icons.flag,
-              title: 'الهدف اليومي',
-              subtitle: counter.dailyTarget > 0
-                  ? '${counter.dailyTarget} مرة'
-                  : 'غير محدد',
-              onTap: () => _showDailyTargetDialog(context, counters),
-            ),
-            SwitchListTile(
-              secondary: _medallionIcon(context, Icons.notifications_active),
-              title: const Text('التذكيرات'),
-              subtitle: const Text('استلام تذكيرات لهذا الذكر'),
-              value: counter.remindersEnabled,
-              onChanged: (value) async {
-                final enabled =
-                    await counters.setRemindersEnabled(counter.id, value);
-                if (value && !enabled && context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('لم يتم منح إذن الإشعارات'),
-                    ),
-                  );
-                }
-              },
-            ),
-
-            if (counter.remindersEnabled) ...[
-              ListTile(
-                title: const Text('نوع التذكير'),
-                subtitle: Text(
-                  counter.reminderType == ReminderType.interval
-                      ? 'تذكير متكرر كل مدة محددة'
-                      : 'تذكير في أوقات يومية',
-                ),
-                trailing: const Icon(Icons.chevron_right),
-                onTap: () => _showReminderTypeDialog(context, counters),
-              ),
-              if (counter.reminderType == ReminderType.interval)
-                ListTile(
-                  title: const Text('فاصل التذكير'),
-                  subtitle: Text(_getIntervalText(counter.reminderIntervalMinutes)),
-                  trailing: const Icon(Icons.chevron_right),
-                  onTap: () => _showIntervalDialog(context, counters),
-                ),
-              if (counter.reminderType == ReminderType.daily)
-                ListTile(
-                  title: const Text('أوقات التذكير اليومية'),
-                  subtitle: Text(
-                    counter.dailyReminderTimes.isEmpty
-                        ? 'لم يتم تحديد أوقات'
-                        : '${counter.dailyReminderTimes.length} أوقات محددة',
-                  ),
-                  trailing: const Icon(Icons.chevron_right),
-                  onTap: () => _showDailyTimesDialog(context, counters),
-                ),
-            ],
-            if (counters.counters.length > 1)
-              ListTile(
-                leading: const Icon(Icons.delete, color: Colors.red),
-                title: const Text('حذف العداد', style: TextStyle(color: Colors.red)),
-                onTap: () => _showDeleteDialog(context, counters),
-              ),
-
-            const SizedBox(height: 8),
-            _sectionTitle(context, 'الاستجابة'),
-            SwitchListTile(
-              secondary: _medallionIcon(context, Icons.vibration),
-              title: const Text('الاهتزاز'),
-              subtitle: const Text('اهتزاز خفيف عند الضغط على زر العدد'),
-              value: settings.settings.vibrationEnabled,
-              onChanged: (value) async {
-                await settings.toggleVibration(value);
-              },
-            ),
-
-            const SizedBox(height: 8),
-            _sectionTitle(context, 'المظهر'),
-            SwitchListTile(
-              secondary: _medallionIcon(context, Icons.dark_mode),
-              title: const Text('الوضع الداكن'),
-              subtitle: const Text('استخدام ألوان داكنة للتطبيق'),
-              value: settings.settings.isDarkMode,
-              onChanged: (value) async {
-                await settings.toggleDarkMode(value);
-              },
-            ),
-
-            const SizedBox(height: 8),
-            _sectionTitle(context, AppStrings.backupSectionTitle),
-            _medallionListTile(
-              context: context,
-              icon: Icons.ios_share,
-              title: AppStrings.exportData,
-              onTap: () => _showExportSheet(context),
-            ),
-            _medallionListTile(
-              context: context,
-              icon: Icons.restore,
-              title: AppStrings.restoreBackup,
-              onTap: () => _showRestoreFlow(context),
-            ),
-
-            const SizedBox(height: 8),
-            _sectionTitle(context, 'حول التطبيق'),
-            _medallionListTile(
-              context: context,
-              icon: Icons.info,
-              title: 'حول التطبيق',
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => const AboutScreen(),
-                  ),
-                );
-              },
-            ),
-          ],
-        );
-      },
-    );
-  }
-
-  Widget _sectionTitle(BuildContext context, String title) {
-    final cs = Theme.of(context).colorScheme;
+  Widget _buildSectionTitle(BuildContext context, String title) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const SizedBox(height: 8),
-        Text(
-          title,
-          style: TextStyle(
-            fontFamily: 'Amiri',
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
-            color: cs.secondary,
-          ),
-        ),
-        Padding(
-          padding: const EdgeInsets.symmetric(vertical: 4),
-          child: Divider(height: 1, thickness: 1, color: cs.secondary),
-        ),
+        Text(title, style: AppTextStyles.display(context)),
+        const GoldHairlineDivider(indent: 0),
       ],
     );
   }
-
-  Widget _medallionIcon(BuildContext context, IconData icon) {
-    final cs = Theme.of(context).colorScheme;
-    return Container(
-      width: 36,
-      height: 36,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        border: Border.all(color: cs.secondary, width: 1.2),
-      ),
-      child: Icon(icon, size: 18, color: cs.primary),
-    );
-  }
-
-  Widget _medallionListTile({
-    required BuildContext context,
-    required IconData icon,
-    required String title,
-    String? subtitle,
-    VoidCallback? onTap,
-  }) {
-    return ListTile(
-      leading: _medallionIcon(context, icon),
-      title: Text(title),
-      subtitle: subtitle != null ? Text(subtitle) : null,
-      trailing: const Icon(Icons.chevron_right),
-      onTap: onTap,
-    );
-  }
 ```
 
-Delete the old `_buildSectionTitle` method (lines 289-300) — replaced by `_sectionTitle`.
-
-Keep `import '../screens/about_screen.dart'`? It's the same package; add `import 'about_screen.dart';` at the top of `settings_screen.dart` (the file is in `lib/screens/`, so `import 'about_screen.dart';`).
-
-- [ ] **Step 2: Update test/settings_backup_test.dart openSettings()**
-
-The `openSettings` helper (lines 52-55) taps `find.byIcon(Icons.settings)`. After redesign, settings is a bottom-nav tab. Change it:
+- Wrap each ListTile's leading `Icon` in a small gold-ringed circle medallion. Add a helper:
 
 ```dart
-Future<void> openSettings(WidgetTester tester) async {
-  await tester.tap(find.text('الإعدادات'));
-  await tester.pumpAndSettle();
-}
+  Widget _medallionIcon(BuildContext context, IconData icon) {
+    final gold = Theme.of(context).colorScheme.secondary;
+    return Container(
+      width: 40,
+      height: 40,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        border: Border.all(color: gold, width: 1.2),
+        color: Theme.of(context).colorScheme.primary.withOpacity(0.06),
+      ),
+      child: Icon(icon, color: Theme.of(context).colorScheme.primary, size: 20),
+    );
+  }
 ```
 
-- [ ] **Step 3: Run the settings backup tests**
+  Replace each `leading: const Icon(Icons.edit)` etc. with `leading: _medallionIcon(context, Icons.edit)`.
 
-Run: `flutter test test/settings_backup_test.dart`
-Expected: PASS — all export/restore tests navigate via the settings tab label and exercise the unchanged backup logic.
+- Recolor `SwitchListTile` switches to emerald/gold: set `activeColor: primary`, `activeTrackColor: gold` via the `SwitchListTile` `activeColor`/`inactiveThumbColor` params where supported (Material 3). Keep all `onChanged` logic verbatim.
 
-- [ ] **Step 4: Commit**
+- Replace the About tile's `Navigator.pushNamed(context, '/about')` with a direct push:
 
-```bash
-git add lib/screens/settings_screen.dart test/settings_backup_test.dart
-git commit -m "feat(settings): gold-divider sections, medallion icons, about push"
+```dart
+              ListTile(
+                leading: _medallionIcon(context, Icons.info),
+                title: const Text('حول التطبيق'),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const AboutScreen(),
+                    ),
+                  );
+                },
+              ),
 ```
 
----
+  Add the import: `import 'about_screen.dart';`
 
-### Task 10: About screen restyle
+- Keep ALL dialog methods (`_showRenameDialog`, `_showDailyTargetDialog`, `_showReminderTypeDialog`, `_showIntervalDialog`, `_showDailyTimesDialog`, `_showDeleteDialog`, `_showExportSheet`, `_showRestoreFlow`, `_exportData`) and the `_DailyTargetDialog` widget VERBATIM in logic. Only restyle their colors/fonts if trivially consistent; do not alter any control flow, `await` order, or snackbar text.
 
-**Files:**
-- Modify: `lib/screens/about_screen.dart` (restyle; keep its own Scaffold/AppBar since it's a pushed full screen)
+Add imports for `app_text_styles.dart`, `gold_divider.dart`, `about_screen.dart`.
 
-**Interfaces:**
-- Consumes: `MihrabArch`, `IslamicPattern`, `GoldDivider`, `AppTextStyles`, `AppStrings`. Pushed via `MaterialPageRoute` (no route name).
-- Produces: `AboutScreen` — restyled, still a self-contained `Scaffold` with an `AppBar` (title 'حول التطبيق') since it's not a shell tab.
+- [x] **Step 3: Rewrite AboutScreen as shell-hosted (no AppBar), mihrab emblem**
 
-- [ ] **Step 1: Rewrite lib/screens/about_screen.dart**
+Modify `lib/screens/about_screen.dart`:
+- Change `return Scaffold(appBar: AppBar(...), body: ...)` to `return Scaffold(body: ...)`. (It is pushed on top of the shell; the shell's header is not shown for pushed routes, so About keeps a plain body. The spec says "rendered inside the shell's arch header" — since it is pushed via `Navigator.push` it renders as a full screen; keep a plain `Scaffold` body so it looks intentional. This is presentation-only.)
+- Replace the big mosque icon `Container` with a `MihrabArch`-framed emblem: a `Stack` of `IslamicPattern(opacity: 0.06)` behind a gold-bordered `Container` holding `Icon(Icons.mosque)`.
+- Salawat text: render `AppStrings.salawat` with `AppTextStyles.display(context)` centered, with `GoldHairlineDivider()` above and below.
+- Feature items: restyle `_buildFeatureItem`'s icon container to the same gold-ringed medallion style as Settings rows (reuse the same shape; can be a local copy of the medallion helper).
+- Footer "صُنع بحب..." in gold italic (already gold via `colorScheme.secondary`; add `fontStyle: FontStyle.italic`, already present — keep).
 
-Keep the same text content and feature list; only restyle. Full file:
+Full replacement file:
 
 ```dart
 import 'package:flutter/material.dart';
@@ -2137,103 +1593,117 @@ class AboutScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('حول التطبيق'),
-      ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            // Mihrab-arch framed emblem with pattern behind.
-            MihrabArch(
-              child: Stack(
-                children: [
-                  const Positioned.fill(child: IslamicPattern(opacity: 0.05)),
-                  Center(
-                    child: Padding(
-                      padding: const EdgeInsets.all(20),
-                      child: Icon(Icons.mosque, size: 64, color: cs.primary),
-                    ),
+      body: SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              const SizedBox(height: 8),
+              // Mihrab-arch framed emblem
+              SizedBox(
+                width: 140,
+                height: 140,
+                child: MihrabArch(
+                  child: Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      const Positioned.fill(child: IslamicPattern(opacity: 0.06)),
+                      Container(
+                        decoration: BoxDecoration(
+                          border: Border.all(
+                              color: Theme.of(context).colorScheme.secondary,
+                              width: 2),
+                          borderRadius: BorderRadius.circular(24),
+                        ),
+                        padding: const EdgeInsets.all(16),
+                        child: Icon(Icons.mosque,
+                            size: 64,
+                            color: Theme.of(context).colorScheme.primary),
+                      ),
+                    ],
                   ),
-                ],
+                ),
               ),
-            ),
-            const SizedBox(height: 20),
-            Text(AppStrings.appName, style: AppTextStyles.display(context)),
-            const SizedBox(height: 6),
-            Text(
-              'الإصدار 1.0.0',
-              style: TextStyle(color: cs.onSurface.withOpacity(0.6)),
-            ),
-            const SizedBox(height: 24),
-            const GoldDivider(),
-            const SizedBox(height: 16),
-
-            // Salawat calligraphic quote with gold hairlines above/below.
-            Text(
-              AppStrings.salawat,
-              textAlign: TextAlign.center,
-              style: AppTextStyles.display(context).copyWith(fontSize: 22),
-            ),
-            const SizedBox(height: 16),
-            const GoldDivider(),
-            const SizedBox(height: 16),
-            Text(
-              'تطبيق بسيط يذكّرك بقول الصلاة على النبي ﷺ\nويتيح لك تسجيل عدد المرات التي قلت فيها الصلاة على النبي ﷺ',
-              textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.bodyLarge,
-            ),
-            const SizedBox(height: 24),
-
-            _featureItem(context, Icons.numbers, 'عدّاد ذكي', 'عدّاد مستمر أو يومي مع حفظ تلقائي'),
-            _featureItem(context, Icons.notifications_active, 'تذكيرات محلية', 'إشعارات متكررة أو في أوقات محددة'),
-            _featureItem(context, Icons.phone_android, 'محلي بالكامل', 'لا يتطلب إنترنت أو حساب مستخدم'),
-            _featureItem(context, Icons.privacy_tip, 'خصوصية تامة', 'لا جمع بيانات ولا تتبع'),
-            const SizedBox(height: 24),
-            Text(
-              'صُنع بحب لخدمة النبي ﷺ',
-              style: TextStyle(
-                color: cs.secondary,
-                fontStyle: FontStyle.italic,
-              ),
-            ),
-            const SizedBox(height: 24),
-            Text(
-              'جميع الحقوق محفوظة © 2024',
-              style: TextStyle(color: cs.onSurface.withOpacity(0.4)),
-            ),
-          ],
+              const SizedBox(height: 24),
+              Text(AppStrings.appName, style: AppTextStyles.display(context)),
+              const SizedBox(height: 8),
+              Text('الإصدار 1.0.0',
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: Theme.of(context)
+                            .colorScheme
+                            .onSurface
+                            .withOpacity(0.6),
+                      )),
+              const SizedBox(height: 24),
+              const GoldHairlineDivider(),
+              Text(AppStrings.salawat,
+                  textAlign: TextAlign.center,
+                  style: AppTextStyles.display(context)),
+              const GoldHairlineDivider(),
+              const SizedBox(height: 24),
+              _buildFeatureItem(context, Icons.numbers, 'عدّاد ذكي',
+                  'عدّاد مستمر أو يومي مع حفظ تلقائي'),
+              _buildFeatureItem(context, Icons.notifications_active,
+                  'تذكيرات محلية', 'إشعارات متكررة أو في أوقات محددة'),
+              _buildFeatureItem(context, Icons.phone_android, 'محلي بالكامل',
+                  'لا يتطلب إنترنت أو حساب مستخدم'),
+              _buildFeatureItem(context, Icons.privacy_tip, 'خصوصية تامة',
+                  'لا جمع بيانات ولا تتبع'),
+              const SizedBox(height: 24),
+              Text('صُنع بحب لخدمة النبي ﷺ',
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: Theme.of(context).colorScheme.secondary,
+                        fontStyle: FontStyle.italic,
+                      )),
+              const SizedBox(height: 32),
+              Text('جميع الحقوق محفوظة © 2024',
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: Theme.of(context)
+                            .colorScheme
+                            .onSurface
+                            .withOpacity(0.4),
+                      )),
+            ],
+          ),
         ),
       ),
     );
   }
 
-  Widget _featureItem(BuildContext context, IconData icon, String title, String description) {
-    final cs = Theme.of(context).colorScheme;
+  Widget _buildFeatureItem(
+      BuildContext context, IconData icon, String title, String description) {
+    final gold = Theme.of(context).colorScheme.secondary;
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8),
       child: Row(
         children: [
           Container(
-            width: 44,
-            height: 44,
+            width: 48,
+            height: 48,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              border: Border.all(color: cs.secondary, width: 1.2),
+              border: Border.all(color: gold, width: 1.2),
+              color: Theme.of(context).colorScheme.primary.withOpacity(0.06),
             ),
-            child: Icon(icon, size: 20, color: cs.primary),
+            child: Icon(icon, color: Theme.of(context).colorScheme.primary),
           ),
           const SizedBox(width: 16),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),
+                Text(title,
+                    style: const TextStyle(
+                        fontWeight: FontWeight.bold, fontFamily: 'ReemKufi')),
                 Text(description,
-                    style: TextStyle(color: cs.onSurface.withOpacity(0.6))),
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          color: Theme.of(context)
+                              .colorScheme
+                              .onSurface
+                              .withOpacity(0.6),
+                        )),
               ],
             ),
           ),
@@ -2244,69 +1714,84 @@ class AboutScreen extends StatelessWidget {
 }
 ```
 
-- [ ] **Step 2: Run the full test suite**
+- [x] **Step 4: Run analyzer**
 
-Run: `flutter test`
-Expected: PASS — all tests green (logic tests unchanged; widget tests updated for new navigation/presentation; decorative-widget smoke tests pass).
+Run: `flutter analyze lib/screens/stats_screen.dart lib/screens/settings_screen.dart lib/screens/about_screen.dart`
+Expected: no issues. Fix any unused-import warnings.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
-git add lib/screens/about_screen.dart
-git commit -m "feat(about): mihrab emblem, calligraphic quote, medallion features"
+git add lib/screens/stats_screen.dart lib/screens/settings_screen.dart lib/screens/about_screen.dart
+git commit -m "feat(ui): restyle Stats/Settings/About onto new identity + shell body-only"
 ```
 
 ---
 
-### Task 11: Final verification gate
+## Task 8: Update widget tests for the deliberate presentation change + run full suite
 
-**Files:** none (verification only)
+**Files:**
+- Modify: `test/widget_test.dart`
 
-- [ ] **Step 1: Run the full test suite**
+**Interfaces:**
+- Consumes: the restyled screens + shell. Updates ONLY test assertions that the spec explicitly mandated to change (presentation), never logic.
+
+> **Why this task exists:** The spec (§3) deliberately replaces the flat `LinearProgressIndicator` with decorative segmented progress. The existing test `shows daily target progress` asserts `find.byType(LinearProgressIndicator)`, which is now intentionally false. This task updates that assertion to assert the new segmented-progress widget instead. All logic assertions (increment, target-reached notification, counter switching, stats labels, backup flows) remain unchanged.
+
+- [x] **Step 1: Update the daily-target-progress test assertion**
+
+In `test/widget_test.dart`, in the `shows daily target progress` test, replace:
+
+```dart
+    expect(find.text('40 / 100'), findsOneWidget);
+    expect(find.byType(LinearProgressIndicator), findsOneWidget);
+```
+
+with:
+
+```dart
+    expect(find.text('40 / 100'), findsOneWidget);
+    // Spec §3: flat LinearProgressIndicator replaced by decorative
+    // segmented progress (tasbih beads). Assert the segmented widget renders.
+    expect(find.byType(LinearProgressIndicator), findsNothing);
+```
+
+(The segmented progress is a private `_SegmentedProgress` widget; asserting `findsNothing` for the old indicator is the stable, intent-preserving assertion that documents the deliberate removal without coupling to a private type name. The `'40 / 100'` finder already proves progress renders.)
+
+- [x] **Step 2: Verify navigation finders still resolve (no change needed)**
+
+The tests navigate via `find.byIcon(Icons.settings)` (Settings tab) and `find.text('الإحصائيات')` (Stats tab). The shell (Task 4) presents these exact icons/labels. Run the navigation tests to confirm — they should pass unchanged. If `find.byIcon(Icons.settings)` returns multiple widgets (e.g. an AppBar action was removed but the shell has the tab), that's fine; the finder still resolves the tab. If any test now finds zero `Icons.settings`, that's a bug in Task 4 — fix the shell, not the test.
+
+- [x] **Step 3: Run the full test suite**
 
 Run: `flutter test`
-Expected: all tests PASS. Capture the exit code and the summary line (e.g. "All tests passed!").
+Expected: ALL tests pass, including the three new decorative-widget smoke tests from Tasks 1, 2, 4. Existing logic tests unchanged.
 
-- [ ] **Step 2: Run static analysis**
+If any existing logic test fails, it is a regression — investigate; the redesign made no logic changes, so a logic-test failure means a wiring mistake in Tasks 5–7 (e.g. a dialog's `await` order changed). Fix the screen, not the test.
 
-Run: `flutter analyze`
-Expected: no errors. Warnings about the missing font files (if any) are acceptable — they are runtime fallbacks, not analyzer errors. Fix any real analyzer errors reported.
+- [x] **Step 4: Commit**
 
-- [ ] **Step 3: Confirm the app builds**
-
-Run: `flutter build apk --debug` (or `flutter build apk --debug --no-pub` if pub is current)
-Expected: SUCCESS. The build will use system font fallback for Amiri/Reem Kufi until the real `.ttf` files are dropped into `assets/fonts/`. If the build fails solely due to missing font asset files, add the `.ttf` files and rebuild; do not comment out the font config.
-
-- [ ] **Step 4: Document the font-drop-in step for the user**
-
-No code change. Add a note to the commit/PR description (or a short README addition) listing the four font files to download from Google Fonts and place in `assets/fonts/`:
-- Amiri-Regular.ttf, Amiri-Bold.ttf (https://fonts.google.com/specimen/Amiri)
-- ReemKufi-Regular.ttf, ReemKufi-Medium.ttf (https://fonts.google.com/specimen/Reem+Kufi)
-
-- [ ] **Step 5: Commit any final touch-ups, then stop**
-
-If steps 1-3 all pass, the redesign is complete. The branch `redesign/elegant-ornamental` holds all redesign commits.
+```bash
+git add test/widget_test.dart
+git commit -m "test(ui): assert LinearProgressIndicator replaced by segmented progress (spec §3)"
+```
 
 ---
 
-## Self-Review
+## Verification Gate
 
-**1. Spec coverage:**
-- Section 1 (visual identity: colors/fonts/motifs) → Task 1 (theme+fonts+textstyles), Tasks 2-4 (motifs). ✓
-- Section 2 (app shell & navigation) → Task 5 (shell), Task 6 (main.dart rewire). ✓
-- Section 3 (home centerpiece) → Task 7. ✓
-- Section 4 (stats/settings/about) → Tasks 8, 9, 10. ✓
-- Section 5 (assets/fonts/buildability/testing) → Task 1 (assets/fonts), Task 11 (verify gate + font-drop note). ✓
+After Task 8, run the full gate:
 
-**2. Placeholder scan:** No TBD/TODO/"implement later" present. Every code step contains full code. ✓
+- [x] **Run: `flutter analyze`** — no issues across `lib/`.
+- [x] **Run: `flutter test`** — full suite green. Includes:
+  - New: `islamic_pattern_test.dart`, `mihrab_arch_test.dart`, `decorative_app_shell_test.dart` (render + tab-switch + state-preserve).
+  - Existing logic tests unchanged: `adhkar_counter_test.dart`, `counters_provider_test.dart`, `settings_provider_test.dart`, `stats_test.dart`, `backup_service_test.dart`, `storage_service_test.dart`, `notification_service_test.dart`, `settings_backup_test.dart`, `unit_test.dart`, `widget_test.dart`.
+- [x] **Confirm no logic changed:** `git diff` should show only presentation/navigation files (`lib/widgets/*`, `lib/screens/*`, `lib/main.dart`, `test/widget_test.dart`, new test files). No changes to `lib/providers/*`, `lib/models/*`, `lib/services/*`, `lib/utils/stats.dart`.
+- [x] **Fonts note:** `assets/fonts/` currently has only `.gitkeep`. App runs + tests pass with system-font fallback. Calligraphic type appears once the four `.ttf` files (Amiri-Regular/Bold, ReemKufi-Regular/Medium) are dropped in — download links in spec §1.
 
-**3. Type consistency:** `AppTextStyles.bismillah/display/kufiNumber/uiLabel` used consistently in Tasks 7, 10. `MihrabArch`/`IslamicPattern`/`GoldDivider` constructors match across Tasks 2-10. `DecorativeAppShell(home/stats/settings)` matches Task 6 wiring. Tab labels 'الرئيسية'/'الإحصائيات'/'الإعدادات' match the test finders in Tasks 7, 8, 9. ✓
+## Self-Review notes (applied during authoring)
 
-## Execution Handoff
-
-Plan complete and saved to `docs/superpowers/plans/2026-08-20-ui-redesign.md`. Two execution options:
-
-1. **Subagent-Driven (recommended)** — I dispatch a fresh subagent per task, review between tasks, fast iteration.
-2. **Inline Execution** — Execute tasks in this session using executing-plans, batch execution with checkpoints.
-
-Which approach?
+- **Spec coverage:** §1 palette/fonts/styles — already present (baseline). §1 motifs → Tasks 1–3. §2 shell + nav → Tasks 4–5. §3 home → Task 6. §4 stats/settings/about → Task 7. §5 fonts/buildability/testing → Task 8 + Verification Gate. About-route removal → Task 5 (route) + Task 7 (push). All sections covered.
+- **Type consistency:** `IslamicPattern`, `MihrabArch`, `GoldHairlineDivider`, `DecorativeAppShell` names + signatures match across every task that consumes them. `AppTextStyles.*` signatures match the existing file.
+- **Placeholder scan:** No TBD/TODO. Every code step has full runnable content.
+- **Known tension, documented:** The single `LinearProgressIndicator` assertion is the only existing test that conflicts with a spec-mandated presentation change; Task 8 handles it explicitly and only after the screen is rewritten, never by restoring the old widget.

@@ -1,6 +1,6 @@
 # Responsive Layouts (Phones & Tablets) Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [x]`) syntax for tracking.
 
 **Goal:** Make the ornamental Salawat app adapt cleanly across phone widths (320–600dp) and tablet widths (≥841dp) with no overflow, scale-aware typography, centered max-width columns on Home/Settings/About, and a two-pane Stats layout on tablets — with zero logic changes.
 
@@ -48,7 +48,7 @@ Modified files:
   - `class Breakpoints` with static `const double compactMax = 400`, `mediumMax = 600`, `expandedMax = 840`, `twoPaneMin = 840`, `homeMaxWidth = 520`, `settingsMaxWidth = 560`; static `bool isCompact(double width)`, `bool isMedium(double width)`, `bool isExpanded(double width)`, `bool isWide(double width)`, `bool useTwoPane(double width)`.
   - `class MaxWidthBox extends StatelessWidget` — `const MaxWidthBox({super.key, required this.maxWidth, required this.child})`; `final double maxWidth; final Widget child;` — centers + constrains child to `maxWidth` using `MediaQuery.sizeOf(context).width`.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```dart
 // test/responsive_test.dart
@@ -101,12 +101,12 @@ void main() {
 }
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `flutter test test/responsive_test.dart`
 Expected: FAIL — `Target of URI doesn't exist: 'package:salawat_app/utils/breakpoints.dart'`.
 
-- [ ] **Step 3: Write minimal implementation**
+- [x] **Step 3: Write minimal implementation**
 
 ```dart
 // lib/utils/breakpoints.dart
@@ -166,12 +166,12 @@ class MaxWidthBox extends StatelessWidget {
 }
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `flutter test test/responsive_test.dart`
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add lib/utils/breakpoints.dart test/responsive_test.dart
@@ -191,7 +191,7 @@ git commit -m "feat(responsive): add Breakpoints utility and MaxWidthBox wrapper
 
 > **Note on accessibility:** Flutter applies `MediaQuery.textScalerOf` to `Text` automatically at render time. Do NOT multiply by the text scaler in `TextStyle` — only apply the width factor. OS accessibility scaling composes on top for free.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Append to `test/responsive_test.dart` (inside `main()`):
 
@@ -249,12 +249,12 @@ Add the import at the top of `test/responsive_test.dart`:
 import 'package:salawat_app/utils/app_text_styles.dart';
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `flutter test test/responsive_test.dart`
 Expected: FAIL — `kufiNumber` returns 88 at all widths (no scaling yet), so `compact.fontSize` is not less than `wide.fontSize`.
 
-- [ ] **Step 3: Write minimal implementation**
+- [x] **Step 3: Write minimal implementation**
 
 Replace the whole `lib/utils/app_text_styles.dart`:
 
@@ -312,17 +312,17 @@ class AppTextStyles {
 }
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `flutter test test/responsive_test.dart`
 Expected: PASS.
 
-- [ ] **Step 5: Run the full suite to confirm no regressions from font scaling**
+- [x] **Step 5: Run the full suite to confirm no regressions from font scaling**
 
 Run: `flutter test`
 Expected: ALL pass. (Existing widget tests assert text content, not exact font size, so scaling is invisible to them. The `widget_test.dart` `shows daily target progress` asserts `find.text('40 / 100')` which is unaffected.)
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add lib/utils/app_text_styles.dart test/responsive_test.dart
@@ -342,7 +342,7 @@ git commit -m "feat(responsive): make AppTextStyles scale-aware by screen width"
 
 > **Test contract:** `test/widget_test.dart` asserts `find.text('0')`, `find.text('اضغط للعد')`, and `'40 / 100'` on Home. These survive because `MaxWidthBox` is a no-op below 520 and `FittedBox` only shrinks, never hides, text. The default test surface (~800x600) is above compact but below the home cap, so Home stays full-width there as before.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Append to `test/responsive_test.dart`:
 
@@ -396,7 +396,7 @@ import 'package:salawat_app/screens/home_screen.dart';
 
 > Note: the second test above is a light smoke; the real overflow protection is verified by the full Home render test in Task 7 (which pumps the actual app at 320dp). Keep this test minimal here; the meaningful assertion is `tester.takeException(), isNull` at 320dp with a long count.
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `flutter test test/responsive_test.dart`
 Expected: FAIL on the `Home renders without overflow` test because Home does not yet use `MaxWidthBox`/`FittedBox` — but since the test above only pumps a stand-in, it will actually PASS already (placeholder). To make it a true failing test for the actual screen, replace the stand-in pump with a real Home pump. Use the test helper from `widget_test.dart`'s `pumpApp` approach. **Simplest correct approach:** defer the real Home overflow test to Task 7 (full app render) and, in this task, make the test assert the *source-level* contract that Home wraps content in `MaxWidthBox` + `FittedBox` by rendering the real Home via the app harness. If that harness duplication is heavy, instead write the test to pump `HomeScreen` directly inside a sized `MaterialApp` with the providers it needs.
@@ -450,7 +450,7 @@ import 'package:salawat_app/services/backup_service.dart';
 Run: `flutter test test/responsive_test.dart`
 Expected: FAIL — `takeException` is not null because Home overflows at 320dp (the 88px count or fixed paddings overflow).
 
-- [ ] **Step 3: Write minimal implementation**
+- [x] **Step 3: Write minimal implementation**
 
 In `lib/screens/home_screen.dart`:
 
@@ -503,17 +503,17 @@ to:
 
 Do NOT change any logic: `Consumer2`, `increment`, `undo`, `reset`, `notifyDailyTargetReached`, haptics, dialogs all stay verbatim.
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `flutter test test/responsive_test.dart`
 Expected: PASS (no overflow at 320dp, `اضغط للعد` found).
 
-- [ ] **Step 5: Run full suite to confirm no regressions**
+- [x] **Step 5: Run full suite to confirm no regressions**
 
 Run: `flutter test`
 Expected: ALL pass.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add lib/screens/home_screen.dart test/responsive_test.dart
@@ -531,7 +531,7 @@ git commit -m "feat(responsive): cap Home to max-width, width-aware padding, Fit
 **Interfaces:**
 - Consumes: `MaxWidthBox`, `Breakpoints` from Task 1.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Append to `test/responsive_test.dart`:
 
@@ -575,12 +575,12 @@ Add import:
 import 'package:salawat_app/screens/settings_screen.dart';
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `flutter test test/responsive_test.dart`
 Expected: FAIL — `constrained` is empty because Settings does not yet use `MaxWidthBox` (no `ConstrainedBox` from `MaxWidthBox` is present).
 
-- [ ] **Step 3: Write minimal implementation**
+- [x] **Step 3: Write minimal implementation**
 
 In `lib/screens/settings_screen.dart`, add import:
 ```dart
@@ -627,17 +627,17 @@ Wrap the `SingleChildScrollView` body. Change the `Scaffold(body: SafeArea(child
 
 No logic changes in either screen.
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `flutter test test/responsive_test.dart`
 Expected: PASS.
 
-- [ ] **Step 5: Run full suite to confirm no regressions**
+- [x] **Step 5: Run full suite to confirm no regressions**
 
 Run: `flutter test`
 Expected: ALL pass. (The `settings_backup_test.dart` tests run at 800x1600 — above medium, below the 560 cap's relevance since 560 < 800, so the list is capped and centered; the tile text finders still resolve.)
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add lib/screens/settings_screen.dart lib/screens/about_screen.dart test/responsive_test.dart
@@ -656,7 +656,7 @@ git commit -m "feat(responsive): cap Settings & About to centered max-width list
 
 > **Test contract:** `widget_test.dart` `stats screen shows chart, totals, and streaks` runs at the default test surface (~800x600) and taps `الإحصائيات` (shell tab), asserting `BarChart`, `الإجمالي الكلي`, `أفضل يوم`, `السلسلة الحالية`, `أطول سلسلة`. At 800 width this is below `twoPaneMin` (840) so Stats renders single-column — the labels all still render. Keep the labels identical. The `settings_backup_test.dart` tests run at 800x1600 — also below 840 — so still single-column; no impact.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Append to `test/responsive_test.dart`:
 
@@ -747,7 +747,7 @@ import 'dart:convert';
 import 'package:salawat_app/screens/stats_screen.dart';
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `flutter test test/responsive_test.dart`
 Expected: FAIL — the tablet test may pass (BarChart renders) but two-pane is not asserted yet; to make it fail meaningfully, first run — it will likely PASS since `BarChart` renders in both layouts. The real regression risk is the existing `stats screen` test in `widget_test.dart` if two-pane hides labels. Run the full suite instead to find the real failure surface:
@@ -766,7 +766,7 @@ Replace the tablet test's tail assertions with:
 Run: `flutter test test/responsive_test.dart`
 Expected: PASS currently (Row already exists in single-column too). The structural two-pane assertion is intentionally loose; the value of this test is the **no-overflow + labels render** check at 1200dp, which would fail if the two-pane introduced an overflow. Run it once to see it pass as the baseline, then implement and confirm it still passes.
 
-- [ ] **Step 3: Write minimal implementation**
+- [x] **Step 3: Write minimal implementation**
 
 In `lib/screens/stats_screen.dart`, add import:
 ```dart
@@ -907,17 +907,17 @@ Implement that refactor: change `_medallionTile` to return `Container(...)` dire
 
 No logic changes — `_days`, `lastDaysCounts`, `windowSum`, `bestDay`, `currentStreak`, `longestStreak` all untouched.
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `flutter test test/responsive_test.dart`
 Expected: PASS (both tablet two-pane and phone single-column render without overflow, labels found).
 
-- [ ] **Step 5: Run full suite to confirm no regressions**
+- [x] **Step 5: Run full suite to confirm no regressions**
 
 Run: `flutter test`
 Expected: ALL pass. Pay attention to `widget_test.dart` `stats screen shows chart, totals, and streaks` (runs ~800 wide → single-column → all labels render) and `settings_backup_test.dart` (800x1600 → single-column). If the `stats screen` test fails on a missing label, the `_tilesGrid`/`_medallionTile` refactor dropped a label — fix the helper to keep all labels identical.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add lib/screens/stats_screen.dart test/responsive_test.dart
@@ -936,7 +936,7 @@ git commit -m "feat(responsive): Stats two-pane layout on tablet, scaled chart h
 
 > **Test contract:** `decorative_app_shell_test.dart` taps `الإحصائيات`/`الإعدادات`/`الرئيسية` by label — labels are unchanged, so the test passes. `widget_test.dart` navigates via the same labels + `Icons.settings`. Tightening the pill bar with `MaxWidthBox` centers it but the labels still resolve to tappable targets.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Append to `test/responsive_test.dart`:
 
@@ -970,12 +970,12 @@ Add import:
 import 'package:salawat_app/widgets/decorative_app_shell.dart';
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `flutter test test/responsive_test.dart`
 Expected: PASS already (the shell renders at 1200 without change). This test is a regression guard that the nav bar doesn't overflow/shift off-screen at tablet width after the `MaxWidthBox` wrap. Run it to confirm baseline, then implement.
 
-- [ ] **Step 3: Write minimal implementation**
+- [x] **Step 3: Write minimal implementation**
 
 In `lib/widgets/decorative_app_shell.dart`, add import:
 ```dart
@@ -1007,17 +1007,17 @@ to:
 
 No change to header, `IndexedStack`, or tab logic.
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `flutter test test/responsive_test.dart`
 Expected: PASS.
 
-- [ ] **Step 5: Run full suite to confirm no regressions**
+- [x] **Step 5: Run full suite to confirm no regressions**
 
 Run: `flutter test`
 Expected: ALL pass. (`decorative_app_shell_test.dart` runs at default ~800 width — below 480 cap's visual effect is minimal there; the `MaxWidthBox` is a no-op below 480, so the pills space out as before.)
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add lib/widgets/decorative_app_shell.dart test/responsive_test.dart
@@ -1030,9 +1030,37 @@ git commit -m "feat(responsive): center and cap bottom-nav pill bar on wide scre
 
 After Task 6, run the full gate:
 
-- [ ] **Run: `flutter analyze lib`** — 0 errors, 0 warnings (info `.withOpacity` deprecations are pre-existing and acceptable).
-- [ ] **Run: `flutter test`** — full suite green. Includes new `responsive_test.dart` (breakpoint classification, MaxWidthBox, font scaling, Home overflow at 320dp, Settings max-width, Stats two-pane + single-column, Shell nav at tablet width) + all existing logic/widget tests unchanged.
-- [ ] **Confirm no logic changed:** `git diff --name-only` should show only `lib/utils/breakpoints.dart`, `lib/utils/app_text_styles.dart`, `lib/screens/*`, `lib/widgets/decorative_app_shell.dart`, `test/responsive_test.dart`. No changes to `lib/providers/*`, `lib/models/*`, `lib/services/*`, `lib/utils/stats.dart`, `lib/utils/app_strings.dart`.
+- [x] **Run: `flutter analyze lib`** — 0 errors, 0 warnings (info `.withOpacity` deprecations are pre-existing and acceptable).
+- [x] **Run: `flutter test`** — full suite green. Includes new `responsive_test.dart` (breakpoint classification, MaxWidthBox, font scaling, Home overflow at 320dp, Settings max-width, Stats two-pane + single-column, Shell nav at tablet width) + all existing logic/widget tests unchanged.
+- [x] **Confirm no logic changed:** `git diff --name-only` should show only `lib/utils/breakpoints.dart`, `lib/utils/app_text_styles.dart`, `lib/screens/*`, `lib/widgets/decorative_app_shell.dart`, `test/responsive_test.dart`. No changes to `lib/providers/*`, `lib/models/*`, `lib/services/*`, `lib/utils/stats.dart`, `lib/utils/app_strings.dart`.
+
+## Execution notes (2026-08-21)
+
+Plan executed to completion. Two deviations from the written steps, both forced by
+actual behavior rather than preference:
+
+1. **Task 6 does not use `MaxWidthBox`.** The plan called for wrapping the pill
+   `Row` in `MaxWidthBox(maxWidth: 480)`. `MaxWidthBox` centers via a bare
+   `Center`, which expands to fill available height. Inside
+   `Scaffold.bottomNavigationBar` that made the nav claim the full screen and
+   collapsed `IndexedStack` to `Size(800, 0)` — 11 tests in
+   `settings_backup_test.dart` and `widget_test.dart` failed with
+   `Bad state: No element` because tiles were no longer laid out. Replaced with
+   `Align(heightFactor: 1)` + `ConstrainedBox(maxWidth: 480)`, which caps width
+   without claiming height. Cap is exposed as
+   `DecorativeAppShell.navMaxWidth`.
+2. **Test hooks are static members, not loose finders.** Task 5's suggested
+   assertions (`find.byType(Row)`, "loose structural check") could not
+   distinguish two-pane from single-column, since both contain a `Row`. Added
+   `StatsScreen.twoPaneKey` and `StatsScreen.chartHeightFor` so the tests assert
+   the real layout branch and the real height curve. This made the two-pane test
+   genuinely fail before implementation (`Member not found: 'twoPaneKey'`, then
+   key-not-found), giving Task 5 a real red phase the plan admitted it lacked.
+
+Final gate: `flutter test` → 90 passed. `flutter analyze lib` → 25 issues, all
+`info`, 0 warnings, 0 errors (the pre-existing `.withOpacity` /
+`activeColor` / `RadioGroup` deprecations the gate explicitly accepts; the
+`unused_import` warning in `stats_screen.dart` is now cleared).
 
 ## Self-Review notes (applied during authoring)
 

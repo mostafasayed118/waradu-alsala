@@ -14,6 +14,7 @@ import '../services/backup_service.dart';
 import '../services/notification_service.dart';
 import '../utils/app_strings.dart';
 import '../utils/app_text_styles.dart';
+import '../utils/breakpoints.dart';
 import '../utils/stats.dart';
 import '../widgets/gold_divider.dart';
 import 'about_screen.dart';
@@ -26,9 +27,11 @@ class SettingsScreen extends StatelessWidget {
     return Consumer2<CountersProvider, SettingsProvider>(
       builder: (context, counters, settings, child) {
         final counter = counters.activeCounter;
-        return ListView(
-          padding: const EdgeInsets.all(16),
-          children: [
+        return MaxWidthBox(
+          maxWidth: Breakpoints.settingsMaxWidth,
+          child: ListView(
+            padding: const EdgeInsets.all(16),
+            children: [
             // Active counter section
             _buildSectionTitle(context, 'العداد الحالي'),
             ListTile(
@@ -165,6 +168,7 @@ class SettingsScreen extends StatelessWidget {
               },
             ),
           ],
+          ),
         );
       },
     );

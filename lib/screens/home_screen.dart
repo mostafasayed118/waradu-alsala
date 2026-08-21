@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import '../providers/counters_provider.dart';
 import '../providers/settings_provider.dart';
 import '../utils/app_text_styles.dart';
+import '../utils/breakpoints.dart';
 import '../utils/stats.dart';
 import '../widgets/gold_divider.dart';
 import '../widgets/islamic_pattern.dart';
@@ -67,6 +68,8 @@ class _HomeScreenState extends State<HomeScreen>
           dailyTarget: target,
           today: DateTime.now(),
         );
+        final width = MediaQuery.sizeOf(context).width;
+        final hPad = Breakpoints.isCompact(width) ? 16.0 : 24.0;
         return Container(
           decoration: BoxDecoration(
             gradient: LinearGradient(
@@ -80,8 +83,10 @@ class _HomeScreenState extends State<HomeScreen>
           ),
           child: SafeArea(
             child: SingleChildScrollView(
-              padding: const EdgeInsets.all(24.0),
-              child: Column(
+              padding: EdgeInsets.all(hPad),
+              child: MaxWidthBox(
+                maxWidth: Breakpoints.homeMaxWidth,
+                child: Column(
                 children: [
                   // Bismillah band
                   Text('بسم الله الرحمن الرحيم',
@@ -142,8 +147,11 @@ class _HomeScreenState extends State<HomeScreen>
                                   scale: _popAnimation.value,
                                   child: c,
                                 ),
-                                child: Text('${counter.currentCount}',
-                                    style: AppTextStyles.kufiNumber(context)),
+                                child: FittedBox(
+                                  fit: BoxFit.scaleDown,
+                                  child: Text('${counter.currentCount}',
+                                      style: AppTextStyles.kufiNumber(context)),
+                                ),
                               ),
                               const SizedBox(height: 4),
                               Text('اليوم',
@@ -244,9 +252,11 @@ class _HomeScreenState extends State<HomeScreen>
                   ),
                   const SizedBox(height: 16),
 
-                  // Undo / Reset outlined gold text-buttons
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  // Undo / Reset outlined gold text-buttons — Wrap prevents overflow at 320dp
+                  Wrap(
+                    alignment: WrapAlignment.center,
+                    spacing: 12,
+                    runSpacing: 8,
                     children: [
                       TextButton.icon(
                         onPressed: counters.canUndo
@@ -297,6 +307,7 @@ class _HomeScreenState extends State<HomeScreen>
               ),
             ),
           ),
+        ),
         );
       },
     );

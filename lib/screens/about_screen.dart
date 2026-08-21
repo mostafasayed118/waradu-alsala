@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../utils/app_strings.dart';
 import '../utils/app_text_styles.dart';
+import '../utils/breakpoints.dart';
 import '../widgets/gold_divider.dart';
 import '../widgets/islamic_pattern.dart';
 import '../widgets/mihrab_arch.dart';
@@ -12,9 +13,11 @@ class AboutScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24),
-          child: Column(
+        child: MaxWidthBox(
+          maxWidth: Breakpoints.settingsMaxWidth,
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(24),
+            child: Column(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               const SizedBox(height: 8),
@@ -86,6 +89,7 @@ class AboutScreen extends StatelessWidget {
           ),
         ),
       ),
+    ),
     );
   }
 

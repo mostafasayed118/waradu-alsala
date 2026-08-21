@@ -1,7 +1,25 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:salawat_app/models/adhkar_counter.dart';
+import 'package:salawat_app/providers/counters_provider.dart';
+import 'package:salawat_app/providers/settings_provider.dart';
+import 'package:salawat_app/screens/home_screen.dart';
+import 'package:salawat_app/screens/settings_screen.dart';
+import 'package:salawat_app/screens/stats_screen.dart';
+import 'package:salawat_app/services/backup_service.dart';
+import 'package:salawat_app/services/notification_service.dart';
+import 'package:salawat_app/services/storage_service.dart';
 import 'package:salawat_app/utils/app_text_styles.dart';
 import 'package:salawat_app/utils/breakpoints.dart';
+import 'package:salawat_app/widgets/decorative_app_shell.dart';
+
+const MethodChannel _respNotificationsChannel =
+    MethodChannel('dexterous.com/flutter/local_notifications');
 
 void main() {
   group('Breakpoints', () {
@@ -78,5 +96,85 @@ void main() {
       expect(compact, closeTo(72.16, 0.5));
       expect(wide, closeTo(103.84, 0.5));
     });
+  });
+
+  testWidgets('Home renders without overflow at 320dp width', (tester) async {
+    TestWidgetsFlutterBinding.ensureInitialized();
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(_respNotificationsChannel,
+            (MethodCall call) async {
+      return call.method == 'initialize' ? true : null;
+    });
+    SharedPreferences.setMockInitialValues({});
+    final storage = StorageService();
+    await storage.init();
+    final notif = NotificationService();
+    await notif.init();
+    tester.view.physicalSize = const Size(320, 640);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+
+    await tester.pumpWidget(
+      MultiProvider(
+        providers: [
+          ChangeNotifierProvider(
+              create: (_) => CountersProvider(storage, notif)..load()),
+          ChangeNotifierProvider(
+              create: (_) => SettingsProvider(storage)..load()),
+          Provider<NotificationService>.value(value: notif),
+          Provider<BackupService>.value(value: BackupService(storage: storage)),
+        ],
+        child: const MaterialApp(home: Scaffold(body: HomeScreen())),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('اضغط للعد'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+    // Home count should be inside a FittedBox to prevent overflow
+    expect(find.byType(FittedBox), findsWidgets);
+  });
+
+  testWidgets('Settings centers content at tablet width', (tester) async {
+    TestWidgetsFlutterBinding.ensureInitialized();
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(_respNotificationsChannel,
+            (MethodCall call) async {
+      return call.method == 'initialize' ? true : null;
+    });
+    tester.view.physicalSize = const Size(1200, 1600);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+
+    SharedPreferences.setMockInitialValues({});
+    final storage = StorageService();
+    await storage.init();
+    final notif = NotificationService();
+    await notif.init();
+
+    await tester.pumpWidget(
+      MultiProvider(
+        providers: [
+          ChangeNotifierProvider(
+              create: (_) => CountersProvider(storage, notif)..load()),
+          ChangeNotifierProvider(
+              create: (_) => SettingsProvider(storage)..load()),
+          Provider<NotificationService>.value(value: notif),
+          Provider<BackupService>.value(value: BackupService(storage: storage)),
+        ],
+        child: const MaterialApp(home: Scaffold(body: SettingsScreen())),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    // At 1200dp, the list content is capped at settingsMaxWidth (560) and centered.
+    final constrained =
+        tester.widgetList<ConstrainedBox>(find.byType(ConstrainedBox));
+    expect(constrained, isNotEmpty);
+    // Check that at least one ConstrainedBox has maxWidth 560
+    expect(
+        constrained.any((c) => c.constraints.maxWidth == Breakpoints.settingsMaxWidth),
+        isTrue);
+    expect(tester.takeException(), isNull);
   });
 }

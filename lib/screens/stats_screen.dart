@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/counters_provider.dart';
 import '../utils/app_text_styles.dart';
+import '../utils/breakpoints.dart';
 import '../utils/stats.dart';
 import '../widgets/gold_divider.dart';
 import '../widgets/islamic_pattern.dart';

@@ -1,4 +1,4 @@
-import '../entities/adhkar_counter.dart';
+import 'package:salawat_app/domain/entities/adhkar_counter.dart';
 
 abstract class CountersRepository {
   Future<List<AdhkarCounter>> getCounters();

@@ -1,5 +1,5 @@
-import '../entities/adhkar_counter.dart';
-import '../entities/app_settings.dart';
+import 'package:salawat_app/domain/entities/adhkar_counter.dart';
+import 'package:salawat_app/domain/entities/app_settings.dart';
 
 abstract class ReminderScheduler {
   Future<bool> requestPermission();

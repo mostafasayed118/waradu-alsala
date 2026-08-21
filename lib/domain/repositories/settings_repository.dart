@@ -1,4 +1,4 @@
-import '../entities/app_settings.dart';
+import 'package:salawat_app/domain/entities/app_settings.dart';
 
 abstract class SettingsRepository {
   Future<AppSettings> getSettings();

@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -177,4 +178,84 @@ void main() {
         isTrue);
     expect(tester.takeException(), isNull);
   });
+
+  testWidgets('Stats renders two-pane layout at tablet width', (tester) async {
+    await _pumpStats(tester, size: const Size(1200, 800), dailyTarget: 5);
+
+    // Two-pane: chart and tiles sit side by side under a keyed container.
+    expect(find.byKey(StatsScreen.twoPaneKey), findsOneWidget);
+    expect(find.byType(BarChart), findsOneWidget);
+    // Every label still renders in two-pane.
+    expect(find.text('الإجمالي الكلي'), findsOneWidget);
+    expect(find.text('أفضل يوم'), findsOneWidget);
+    expect(find.text('السلسلة الحالية'), findsOneWidget);
+    expect(find.text('أطول سلسلة'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('Stats renders single column at phone width', (tester) async {
+    await _pumpStats(tester, size: const Size(400, 800), dailyTarget: 5);
+
+    expect(find.byKey(StatsScreen.twoPaneKey), findsNothing);
+    expect(find.byType(BarChart), findsOneWidget);
+    expect(find.text('الإجمالي الكلي'), findsOneWidget);
+    expect(find.text('أفضل يوم'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('Stats chart height scales with width', (tester) async {
+    await _pumpStats(tester, size: const Size(320, 800), dailyTarget: 0);
+    expect(StatsScreen.chartHeightFor(320), 180);
+    expect(StatsScreen.chartHeightFor(500), 220);
+    expect(StatsScreen.chartHeightFor(800), 260);
+  });
+}
+
+/// Pumps StatsScreen at a fixed surface size with one seeded counter.
+Future<void> _pumpStats(
+  WidgetTester tester, {
+  required Size size,
+  required int dailyTarget,
+}) async {
+  TestWidgetsFlutterBinding.ensureInitialized();
+  TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+      .setMockMethodCallHandler(_respNotificationsChannel,
+          (MethodCall call) async {
+    return call.method == 'initialize' ? true : null;
+  });
+  SharedPreferences.setMockInitialValues({
+    'adhkar_counters': jsonEncode([
+      AdhkarCounter(
+        id: 'salawat',
+        name: 'الصلاة على النبي ﷺ',
+        currentCount: 3,
+        totalCount: 100,
+        dailyTarget: dailyTarget,
+        history: const {'2025-01-01': 5},
+      ).toJson(),
+    ]),
+  });
+  final storage = StorageService();
+  await storage.init();
+  final notif = NotificationService();
+  await notif.init();
+
+  tester.view.physicalSize = size;
+  tester.view.devicePixelRatio = 1.0;
+  addTearDown(tester.view.reset);
+
+  await tester.pumpWidget(
+    MultiProvider(
+      providers: [
+        ChangeNotifierProvider(
+            create: (_) => CountersProvider(storage, notif)..load()),
+        ChangeNotifierProvider(
+            create: (_) => SettingsProvider(storage)..load()),
+        Provider<NotificationService>.value(value: notif),
+        Provider<BackupService>.value(value: BackupService(storage: storage)),
+      ],
+      child: const MaterialApp(home: Scaffold(body: StatsScreen())),
+    ),
+  );
+  await tester.pumpAndSettle();
 }

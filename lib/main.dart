@@ -9,6 +9,7 @@ import 'package:salawat_app/features/settings/settings_provider.dart';
 import 'package:salawat_app/data/counters_repository_impl.dart';
 import 'package:salawat_app/data/settings_repository_impl.dart';
 import 'package:salawat_app/data/notifications/notification_service.dart';
+import 'package:salawat_app/domain/repositories/reminder_scheduler.dart';
 import 'package:salawat_app/data/backup_service.dart';
 import 'package:salawat_app/data/widget/widget_sync_service.dart';
 import 'package:salawat_app/features/counting/screens/home_screen.dart';
@@ -49,6 +50,7 @@ void main() async {
               SettingsProvider(settingsRepository: settingsRepository)..load(),
         ),
         Provider<NotificationService>.value(value: notificationService),
+        Provider<ReminderScheduler>.value(value: notificationService),
         Provider<BackupService>.value(
           value: BackupService(
             counters: countersRepository,

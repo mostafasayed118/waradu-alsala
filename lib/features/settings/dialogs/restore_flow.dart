@@ -5,7 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:salawat_app/core/l10n/app_localizations.dart';
 import 'package:salawat_app/data/backup_service.dart';
-import 'package:salawat_app/data/notifications/notification_service.dart';
+import 'package:salawat_app/domain/repositories/reminder_scheduler.dart';
 import 'package:salawat_app/features/counting/counters_provider.dart';
 import 'package:salawat_app/features/settings/settings_provider.dart';
 
@@ -14,7 +14,7 @@ Future<void> showRestoreFlow(BuildContext context) async {
   final backup = context.read<BackupService>();
   final counters = context.read<CountersProvider>();
   final settings = context.read<SettingsProvider>();
-  final notifications = context.read<NotificationService>();
+  final notifications = context.read<ReminderScheduler>();
   final messenger = ScaffoldMessenger.of(context);
 
   final picked = await FilePicker.pickFiles(

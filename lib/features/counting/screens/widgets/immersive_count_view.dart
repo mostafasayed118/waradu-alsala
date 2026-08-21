@@ -4,7 +4,7 @@ import 'package:salawat_app/features/counting/counters_provider.dart';
 import 'package:salawat_app/core/l10n/app_localizations.dart';
 import 'package:salawat_app/core/theme/app_text_styles.dart';
 import 'package:salawat_app/shared/widgets/islamic_pattern.dart';
-import 'package:salawat_app/features/counting/screens/widgets/counter_card.dart';
+import 'package:salawat_app/features/counting/screens/widgets/segmented_progress.dart';
 
 class ImmersiveCountView extends StatelessWidget {
   const ImmersiveCountView({

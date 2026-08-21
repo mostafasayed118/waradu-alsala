@@ -16,6 +16,7 @@ import 'package:salawat_app/data/counters_repository_impl.dart';
 import 'package:salawat_app/data/settings_repository_impl.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:salawat_app/data/notifications/notification_service.dart';
+import 'package:salawat_app/domain/repositories/reminder_scheduler.dart';
 
 const MethodChannel _notificationsChannel =
     MethodChannel('dexterous.com/flutter/local_notifications');
@@ -47,6 +48,7 @@ Future<void> pumpApp(WidgetTester tester) async {
               SettingsProvider(settingsRepository: settingsRepository)..load(),
         ),
         Provider<NotificationService>.value(value: notif),
+        Provider<ReminderScheduler>.value(value: notif),
         Provider<BackupService>.value(
           value: BackupService(
             counters: countersRepository,

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:salawat_app/core/l10n/app_localizations.dart';
-import 'package:salawat_app/data/notifications/notification_service.dart';
+import 'package:salawat_app/domain/repositories/reminder_scheduler.dart';
 import 'package:salawat_app/features/counting/counters_provider.dart';
 import 'package:salawat_app/features/settings/settings_provider.dart';
 
@@ -9,7 +9,7 @@ Future<void> showPrayerLocationDialog(BuildContext context) async {
   final s = S.of(context);
   final settings = context.read<SettingsProvider>();
   final counters = context.read<CountersProvider>();
-  final notifications = context.read<NotificationService>();
+  final notifications = context.read<ReminderScheduler>();
 
   final latController =
       TextEditingController(text: settings.settings.latitude?.toString() ?? '');

@@ -3,8 +3,7 @@ import 'dart:async';
 import 'package:home_widget/home_widget.dart';
 
 import 'package:salawat_app/domain/entities/adhkar_counter.dart';
-import 'package:salawat_app/domain/services/rollover.dart';
-import 'package:salawat_app/data/storage_service.dart';
+import 'package:salawat_app/data/counters_repository_impl.dart';
 
 /// Keeps the Android home-screen widget in sync with the active counter.
 class WidgetSyncService {
@@ -56,8 +55,7 @@ class WidgetSyncService {
 Future<void> widgetBackgroundCallback(Uri? uri) async {
   if (uri?.host != 'increment') return;
   try {
-    final storage = StorageService();
-    await storage.init();
+    final storage = CountersRepositoryImpl();
     final counters = await storage.getCounters();
     if (counters.isEmpty) return;
 
@@ -66,7 +64,7 @@ Future<void> widgetBackgroundCallback(Uri? uri) async {
     if (index < 0) index = 0;
 
     final now = DateTime.now();
-    final rolled = rollOverCounter(counters[index], now);
+    final rolled = counters[index].rolledOver(now);
     final updated = rolled.copyWith(
       currentCount: rolled.currentCount + 1,
       totalCount: rolled.totalCount + 1,

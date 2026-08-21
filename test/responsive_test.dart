@@ -15,8 +15,9 @@ import 'package:salawat_app/features/counting/screens/home_screen.dart';
 import 'package:salawat_app/features/settings/settings_screen.dart';
 import 'package:salawat_app/features/stats/stats_screen.dart';
 import 'package:salawat_app/data/backup_service.dart';
+import 'package:salawat_app/data/counters_repository_impl.dart';
+import 'package:salawat_app/data/settings_repository_impl.dart';
 import 'package:salawat_app/data/notifications/notification_service.dart';
-import 'package:salawat_app/data/storage_service.dart';
 import 'package:salawat_app/core/theme/app_text_styles.dart';
 import 'package:salawat_app/core/utils/breakpoints.dart';
 import 'package:salawat_app/shared/widgets/max_width_box.dart';
@@ -110,8 +111,8 @@ void main() {
       return call.method == 'initialize' ? true : null;
     });
     SharedPreferences.setMockInitialValues({});
-    final storage = StorageService();
-    await storage.init();
+    final countersRepository = CountersRepositoryImpl();
+    final settingsRepository = SettingsRepositoryImpl();
     final notif = NotificationService();
     AndroidFlutterLocalNotificationsPlugin.registerWith();
     await notif.init();
@@ -123,11 +124,22 @@ void main() {
       MultiProvider(
         providers: [
           ChangeNotifierProvider(
-              create: (_) => CountersProvider(storage, notif)..load()),
+              create: (_) => CountersProvider(
+                    countersRepository: countersRepository,
+                    settingsRepository: settingsRepository,
+                    reminderScheduler: notif,
+                  )..load()),
           ChangeNotifierProvider(
-              create: (_) => SettingsProvider(storage)..load()),
+              create: (_) =>
+                  SettingsProvider(settingsRepository: settingsRepository)
+                    ..load()),
           Provider<NotificationService>.value(value: notif),
-          Provider<BackupService>.value(value: BackupService(storage: storage)),
+          Provider<BackupService>.value(
+            value: BackupService(
+              counters: countersRepository,
+              settings: settingsRepository,
+            ),
+          ),
         ],
         child: MaterialApp(
         locale: const Locale('ar', 'SA'),
@@ -157,8 +169,8 @@ void main() {
     addTearDown(tester.view.reset);
 
     SharedPreferences.setMockInitialValues({});
-    final storage = StorageService();
-    await storage.init();
+    final countersRepository = CountersRepositoryImpl();
+    final settingsRepository = SettingsRepositoryImpl();
     final notif = NotificationService();
     AndroidFlutterLocalNotificationsPlugin.registerWith();
     await notif.init();
@@ -167,11 +179,22 @@ void main() {
       MultiProvider(
         providers: [
           ChangeNotifierProvider(
-              create: (_) => CountersProvider(storage, notif)..load()),
+              create: (_) => CountersProvider(
+                    countersRepository: countersRepository,
+                    settingsRepository: settingsRepository,
+                    reminderScheduler: notif,
+                  )..load()),
           ChangeNotifierProvider(
-              create: (_) => SettingsProvider(storage)..load()),
+              create: (_) =>
+                  SettingsProvider(settingsRepository: settingsRepository)
+                    ..load()),
           Provider<NotificationService>.value(value: notif),
-          Provider<BackupService>.value(value: BackupService(storage: storage)),
+          Provider<BackupService>.value(
+            value: BackupService(
+              counters: countersRepository,
+              settings: settingsRepository,
+            ),
+          ),
         ],
         child: MaterialApp(
         locale: const Locale('ar', 'SA'),
@@ -288,8 +311,8 @@ Future<void> _pumpStats(
       ).toJson(),
     ]),
   });
-  final storage = StorageService();
-  await storage.init();
+  final countersRepository = CountersRepositoryImpl();
+  final settingsRepository = SettingsRepositoryImpl();
   final notif = NotificationService();
   AndroidFlutterLocalNotificationsPlugin.registerWith();
   await notif.init();
@@ -302,11 +325,22 @@ Future<void> _pumpStats(
     MultiProvider(
       providers: [
         ChangeNotifierProvider(
-            create: (_) => CountersProvider(storage, notif)..load()),
+            create: (_) => CountersProvider(
+                  countersRepository: countersRepository,
+                  settingsRepository: settingsRepository,
+                  reminderScheduler: notif,
+                )..load()),
         ChangeNotifierProvider(
-            create: (_) => SettingsProvider(storage)..load()),
+            create: (_) =>
+                SettingsProvider(settingsRepository: settingsRepository)
+                  ..load()),
         Provider<NotificationService>.value(value: notif),
-        Provider<BackupService>.value(value: BackupService(storage: storage)),
+        Provider<BackupService>.value(
+          value: BackupService(
+            counters: countersRepository,
+            settings: settingsRepository,
+          ),
+        ),
       ],
       child: MaterialApp(
         locale: const Locale('ar', 'SA'),

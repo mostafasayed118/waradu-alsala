@@ -1,3 +1,5 @@
+import 'package:salawat_app/domain/services/stats_calculator.dart';
+
 enum ReminderType { interval, daily, prayer }
 
 class AdhkarCounter {
@@ -63,6 +65,27 @@ class AdhkarCounter {
           reminderIntervalMinutes ?? this.reminderIntervalMinutes,
       dailyReminderTimes: dailyReminderTimes ?? this.dailyReminderTimes,
       prayerOffsetMinutes: prayerOffsetMinutes ?? this.prayerOffsetMinutes,
+    );
+  }
+
+  /// Archives a previous day's count into history and resets the daily
+  /// count when last used before [now]'s day; returns this otherwise.
+  AdhkarCounter rolledOver(DateTime now) {
+    final last = lastUsedAt;
+    if (last.year == now.year &&
+        last.month == now.month &&
+        last.day == now.day) {
+      return this;
+    }
+    final history = Map<String, int>.from(this.history);
+    if (currentCount > 0) {
+      history[dailyKey(last)] = currentCount;
+    }
+    return copyWith(
+      currentCount: 0,
+      history: history,
+      lastUsedAt: now,
+      lastResetAt: now,
     );
   }
 

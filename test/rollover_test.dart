@@ -1,6 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:salawat_app/domain/entities/adhkar_counter.dart';
-import 'package:salawat_app/domain/services/rollover.dart';
 import 'package:salawat_app/domain/services/stats_calculator.dart';
 
 AdhkarCounter _counter({
@@ -22,7 +21,7 @@ void main() {
   test('same-day usage returns the counter unchanged', () {
     final counter = _counter(currentCount: 7, lastUsedAt: now);
 
-    final rolled = rollOverCounter(counter, now);
+    final rolled = counter.rolledOver(now);
 
     expect(identical(rolled, counter), isTrue);
   });
@@ -31,7 +30,7 @@ void main() {
     final yesterday = now.subtract(const Duration(days: 1));
     final counter = _counter(currentCount: 33, lastUsedAt: yesterday);
 
-    final rolled = rollOverCounter(counter, now);
+    final rolled = counter.rolledOver(now);
 
     expect(rolled.currentCount, 0);
     expect(rolled.totalCount, 100);
@@ -43,7 +42,7 @@ void main() {
     final yesterday = now.subtract(const Duration(days: 1));
     final counter = _counter(lastUsedAt: yesterday);
 
-    final rolled = rollOverCounter(counter, now);
+    final rolled = counter.rolledOver(now);
 
     expect(rolled.currentCount, 0);
     expect(rolled.history, isEmpty);

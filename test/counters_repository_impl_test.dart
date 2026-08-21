@@ -3,7 +3,7 @@ import 'dart:convert';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:salawat_app/domain/entities/adhkar_counter.dart';
-import 'package:salawat_app/data/storage_service.dart';
+import 'package:salawat_app/data/counters_repository_impl.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -24,10 +24,9 @@ void main() {
       }),
     });
 
-    final storage = StorageService();
-    await storage.init();
+    final repository = CountersRepositoryImpl();
 
-    final counters = await storage.getCounters();
+    final counters = await repository.getCounters();
 
     expect(counters.length, 5);
     final salawat = counters.first;
@@ -45,10 +44,9 @@ void main() {
   test('returns the five presets when no legacy data exists', () async {
     SharedPreferences.setMockInitialValues({});
 
-    final storage = StorageService();
-    await storage.init();
+    final repository = CountersRepositoryImpl();
 
-    final counters = await storage.getCounters();
+    final counters = await repository.getCounters();
 
     expect(counters.length, 5);
     expect(counters.first.id, 'salawat');
@@ -59,18 +57,17 @@ void main() {
   test('active counter id round-trips through storage', () async {
     SharedPreferences.setMockInitialValues({});
 
-    final storage = StorageService();
-    await storage.init();
+    final repository = CountersRepositoryImpl();
 
-    expect(await storage.getActiveCounterId(), isNull);
+    expect(await repository.getActiveCounterId(), isNull);
 
-    await storage.saveActiveCounterId('tasbih');
-    expect(await storage.getActiveCounterId(), 'tasbih');
+    await repository.saveActiveCounterId('tasbih');
+    expect(await repository.getActiveCounterId(), 'tasbih');
 
-    await storage.saveActiveCounterId('salawat');
-    expect(await storage.getActiveCounterId(), 'salawat');
+    await repository.saveActiveCounterId('salawat');
+    expect(await repository.getActiveCounterId(), 'salawat');
 
-    await storage.saveActiveCounterId(null);
-    expect(await storage.getActiveCounterId(), isNull);
+    await repository.saveActiveCounterId(null);
+    expect(await repository.getActiveCounterId(), isNull);
   });
 }

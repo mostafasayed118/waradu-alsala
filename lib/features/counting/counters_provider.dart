@@ -2,13 +2,20 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 import 'package:salawat_app/domain/entities/adhkar_counter.dart';
-import 'package:salawat_app/data/notifications/notification_service.dart';
-import 'package:salawat_app/data/storage_service.dart';
-import 'package:salawat_app/domain/services/rollover.dart';
+import 'package:salawat_app/domain/repositories/counters_repository.dart';
+import 'package:salawat_app/domain/repositories/settings_repository.dart';
+import 'package:salawat_app/domain/repositories/reminder_scheduler.dart';
 
 class CountersProvider with ChangeNotifier {
-  final StorageService _storage;
-  final NotificationService _notificationService;
+  CountersProvider({
+    required this._countersRepository,
+    required this._settingsRepository,
+    required this._reminderScheduler,
+  });
+
+  final CountersRepository _countersRepository;
+  final SettingsRepository _settingsRepository;
+  final ReminderScheduler _reminderScheduler;
 
   List<AdhkarCounter> _counters = [];
   String _activeId = '';
@@ -21,8 +28,6 @@ class CountersProvider with ChangeNotifier {
   bool _persistPending = false;
 
   static final AdhkarCounter _empty = AdhkarCounter(id: '', name: '');
-
-  CountersProvider(this._storage, this._notificationService);
 
   List<AdhkarCounter> get counters => List.unmodifiable(_counters);
 
@@ -37,8 +42,8 @@ class CountersProvider with ChangeNotifier {
   bool get canUndo => _lastCount != null;
 
   Future<void> load() async {
-    _counters = List.of(await _storage.getCounters());
-    final stored = await _storage.getActiveCounterId();
+    _counters = List.of(await _countersRepository.getCounters());
+    final stored = await _countersRepository.getActiveCounterId();
     if (stored != null &&
         stored.isNotEmpty &&
         _counters.any((c) => c.id == stored)) {
@@ -54,13 +59,13 @@ class CountersProvider with ChangeNotifier {
     if (_activeId == id) return;
     _activeId = id;
     _lastCount = null;
-    await _storage.saveActiveCounterId(id);
+    await _countersRepository.saveActiveCounterId(id);
     notifyListeners();
   }
 
   Future<void> increment() async {
     final active = activeCounter;
-    final rolled = rollOverCounter(active, DateTime.now());
+    final rolled = active.rolledOver(DateTime.now());
     _lastCount = rolled.currentCount;
     _replace(
       active.id,
@@ -116,7 +121,7 @@ class CountersProvider with ChangeNotifier {
     _lastCount = null;
     notifyListeners();
     await _flushPersist();
-    await _storage.saveActiveCounterId(counter.id);
+    await _countersRepository.saveActiveCounterId(counter.id);
   }
 
   /// Activates an existing counter named [name], creating it first when no
@@ -141,7 +146,7 @@ class CountersProvider with ChangeNotifier {
     _counters = List.of(_counters)..removeAt(index);
     if (_activeId == id) {
       _activeId = _counters.isEmpty ? '' : _counters.first.id;
-      await _storage.saveActiveCounterId(
+      await _countersRepository.saveActiveCounterId(
           _counters.isEmpty ? null : _activeId);
     }
     _lastCount = null;
@@ -155,7 +160,7 @@ class CountersProvider with ChangeNotifier {
 
   Future<bool> setRemindersEnabled(String id, bool enabled) async {
     if (enabled) {
-      final granted = await _notificationService.requestPermission();
+      final granted = await _reminderScheduler.requestPermission();
       if (!granted) return false;
     }
     await _updateCounter(id, (c) => c.copyWith(remindersEnabled: enabled));
@@ -184,7 +189,7 @@ class CountersProvider with ChangeNotifier {
   }
 
   Future<void> notifyDailyTargetReached() async {
-    await _notificationService.showDailyTargetReached(activeCounter.name);
+    await _reminderScheduler.showDailyTargetReached(activeCounter.name);
   }
 
   Future<void> rolloverIfNewDay() => _rolloverAll();
@@ -214,7 +219,7 @@ class CountersProvider with ChangeNotifier {
     _persistTimer = null;
     if (!_persistPending) return Future.value();
     _persistPending = false;
-    return _storage.saveCounters(_counters);
+    return _countersRepository.saveCounters(_counters);
   }
 
   @override
@@ -222,7 +227,7 @@ class CountersProvider with ChangeNotifier {
     _persistTimer?.cancel();
     if (_persistPending) {
       _persistPending = false;
-      unawaited(_storage.saveCounters(_counters));
+      unawaited(_countersRepository.saveCounters(_counters));
     }
     super.dispose();
   }
@@ -238,7 +243,7 @@ class CountersProvider with ChangeNotifier {
     var changed = false;
     final now = DateTime.now();
     for (var i = 0; i < _counters.length; i++) {
-      final rolled = rollOverCounter(_counters[i], now);
+      final rolled = _counters[i].rolledOver(now);
       if (!identical(rolled, _counters[i])) {
         _counters[i] = rolled;
         changed = true;
@@ -252,8 +257,8 @@ class CountersProvider with ChangeNotifier {
 
   Future<void> _reschedule() async {
     // Prayer-type counters need the configured location from settings.
-    final settings = await _storage.getSettings();
-    await _notificationService.rescheduleAll(_counters, settings: settings);
+    final settings = await _settingsRepository.getSettings();
+    await _reminderScheduler.rescheduleAll(_counters, settings: settings);
   }
 }
 

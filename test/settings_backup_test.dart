@@ -12,9 +12,10 @@ import 'package:salawat_app/main.dart';
 import 'package:salawat_app/features/counting/counters_provider.dart';
 import 'package:salawat_app/features/settings/settings_provider.dart';
 import 'package:salawat_app/data/backup_service.dart';
+import 'package:salawat_app/data/counters_repository_impl.dart';
+import 'package:salawat_app/data/settings_repository_impl.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:salawat_app/data/notifications/notification_service.dart';
-import 'package:salawat_app/data/storage_service.dart';
 
 const MethodChannel _notificationsChannel =
     MethodChannel('dexterous.com/flutter/local_notifications');
@@ -24,8 +25,8 @@ const MethodChannel _pathProviderChannel =
     MethodChannel('plugins.flutter.io/path_provider');
 
 Future<void> pumpApp(WidgetTester tester) async {
-  final storageService = StorageService();
-  await storageService.init();
+  final countersRepository = CountersRepositoryImpl();
+  final settingsRepository = SettingsRepositoryImpl();
 
   final notif = NotificationService();
   AndroidFlutterLocalNotificationsPlugin.registerWith();
@@ -35,14 +36,22 @@ Future<void> pumpApp(WidgetTester tester) async {
     MultiProvider(
       providers: [
         ChangeNotifierProvider(
-          create: (_) => CountersProvider(storageService, notif)..load(),
+          create: (_) => CountersProvider(
+            countersRepository: countersRepository,
+            settingsRepository: settingsRepository,
+            reminderScheduler: notif,
+          )..load(),
         ),
         ChangeNotifierProvider(
-          create: (_) => SettingsProvider(storageService)..load(),
+          create: (_) =>
+              SettingsProvider(settingsRepository: settingsRepository)..load(),
         ),
         Provider<NotificationService>.value(value: notif),
         Provider<BackupService>.value(
-          value: BackupService(storage: storageService),
+          value: BackupService(
+            counters: countersRepository,
+            settings: settingsRepository,
+          ),
         ),
       ],
       child: const MyApp(),

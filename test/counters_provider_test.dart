@@ -1,44 +1,35 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:salawat_app/domain/entities/adhkar_counter.dart';
 import 'package:salawat_app/domain/entities/app_settings.dart';
+import 'package:salawat_app/domain/repositories/counters_repository.dart';
+import 'package:salawat_app/domain/repositories/settings_repository.dart';
+import 'package:salawat_app/domain/repositories/reminder_scheduler.dart';
 import 'package:salawat_app/features/counting/counters_provider.dart';
-import 'package:salawat_app/data/notifications/notification_service.dart';
-import 'package:salawat_app/data/storage_service.dart';
 import 'package:salawat_app/domain/services/stats_calculator.dart';
 
-class _FakeStorageService extends StorageService {
-  _FakeStorageService(this.stored);
-
+class _FakeCountersRepository implements CountersRepository {
+  _FakeCountersRepository(this.stored);
   List<AdhkarCounter> stored;
   String? activeId;
-  AppSettings settings = AppSettings();
-
   @override
   Future<List<AdhkarCounter>> getCounters() async => stored;
-
   @override
-  Future<void> saveCounters(List<AdhkarCounter> counters) async {
-    stored = counters;
-  }
-
+  Future<void> saveCounters(List<AdhkarCounter> counters) async => stored = counters;
   @override
   Future<String?> getActiveCounterId() async => activeId;
-
   @override
-  Future<void> saveActiveCounterId(String? id) async {
-    activeId = id;
-  }
-
-  @override
-  Future<AppSettings> getSettings() async => settings;
-
-  @override
-  Future<void> saveSettings(AppSettings value) async {
-    settings = value;
-  }
+  Future<void> saveActiveCounterId(String? id) async => activeId = id;
 }
 
-class _FakeNotificationService extends NotificationService {
+class _FakeSettingsRepository implements SettingsRepository {
+  AppSettings settings = AppSettings();
+  @override
+  Future<AppSettings> getSettings() async => settings;
+  @override
+  Future<AppSettings> saveSettings(AppSettings s) async => settings = s;
+}
+
+class _FakeNotificationService implements ReminderScheduler {
   bool permissionGranted = true;
   int rescheduleCalls = 0;
   AppSettings? lastSettings;
@@ -82,11 +73,15 @@ AdhkarCounter _counter(
 
 void main() {
   test('load defaults the active counter to the first', () async {
-    final storage = _FakeStorageService([
+    final counters = _FakeCountersRepository([
       _counter('a', name: 'A'),
       _counter('b', name: 'B'),
     ]);
-    final provider = CountersProvider(storage, _FakeNotificationService());
+    final provider = CountersProvider(
+      countersRepository: counters,
+      settingsRepository: _FakeSettingsRepository(),
+      reminderScheduler: _FakeNotificationService(),
+    );
 
     await provider.load();
 
@@ -95,11 +90,15 @@ void main() {
   });
 
   test('setActive switches the active counter', () async {
-    final storage = _FakeStorageService([
+    final counters = _FakeCountersRepository([
       _counter('a', name: 'A'),
       _counter('b', name: 'B'),
     ]);
-    final provider = CountersProvider(storage, _FakeNotificationService());
+    final provider = CountersProvider(
+      countersRepository: counters,
+      settingsRepository: _FakeSettingsRepository(),
+      reminderScheduler: _FakeNotificationService(),
+    );
     await provider.load();
 
     await provider.setActive('b');
@@ -108,11 +107,15 @@ void main() {
   });
 
   test('increment increases the active counter', () async {
-    final storage = _FakeStorageService([
+    final counters = _FakeCountersRepository([
       _counter('a', name: 'A'),
       _counter('b', name: 'B'),
     ]);
-    final provider = CountersProvider(storage, _FakeNotificationService());
+    final provider = CountersProvider(
+      countersRepository: counters,
+      settingsRepository: _FakeSettingsRepository(),
+      reminderScheduler: _FakeNotificationService(),
+    );
     await provider.load();
 
     await provider.increment();
@@ -123,7 +126,7 @@ void main() {
 
   test('rollover on load resets count and records history', () async {
     final yesterday = DateTime.now().subtract(const Duration(days: 1));
-    final storage = _FakeStorageService([
+    final counters = _FakeCountersRepository([
       _counter(
         'a',
         name: 'A',
@@ -132,7 +135,11 @@ void main() {
         lastUsedAt: yesterday,
       ),
     ]);
-    final provider = CountersProvider(storage, _FakeNotificationService());
+    final provider = CountersProvider(
+      countersRepository: counters,
+      settingsRepository: _FakeSettingsRepository(),
+      reminderScheduler: _FakeNotificationService(),
+    );
 
     await provider.load();
 
@@ -142,10 +149,14 @@ void main() {
   });
 
   test('rollover on load keeps a same-day count', () async {
-    final storage = _FakeStorageService([
+    final counters = _FakeCountersRepository([
       _counter('a', name: 'A', currentCount: 50, totalCount: 200),
     ]);
-    final provider = CountersProvider(storage, _FakeNotificationService());
+    final provider = CountersProvider(
+      countersRepository: counters,
+      settingsRepository: _FakeSettingsRepository(),
+      reminderScheduler: _FakeNotificationService(),
+    );
 
     await provider.load();
 
@@ -154,8 +165,12 @@ void main() {
   });
 
   test('undo restores the previous count', () async {
-    final storage = _FakeStorageService([_counter('a', name: 'A')]);
-    final provider = CountersProvider(storage, _FakeNotificationService());
+    final counters = _FakeCountersRepository([_counter('a', name: 'A')]);
+    final provider = CountersProvider(
+      countersRepository: counters,
+      settingsRepository: _FakeSettingsRepository(),
+      reminderScheduler: _FakeNotificationService(),
+    );
     await provider.load();
 
     await provider.increment();
@@ -169,10 +184,14 @@ void main() {
   });
 
   test('undo decrements the lifetime total back', () async {
-    final storage = _FakeStorageService([
+    final counters = _FakeCountersRepository([
       _counter('a', name: 'A', currentCount: 5, totalCount: 100),
     ]);
-    final provider = CountersProvider(storage, _FakeNotificationService());
+    final provider = CountersProvider(
+      countersRepository: counters,
+      settingsRepository: _FakeSettingsRepository(),
+      reminderScheduler: _FakeNotificationService(),
+    );
     await provider.load();
 
     await provider.increment();
@@ -186,10 +205,14 @@ void main() {
   });
 
   test('reset zeroes current but keeps total', () async {
-    final storage = _FakeStorageService([
+    final counters = _FakeCountersRepository([
       _counter('a', name: 'A', currentCount: 42, totalCount: 100),
     ]);
-    final provider = CountersProvider(storage, _FakeNotificationService());
+    final provider = CountersProvider(
+      countersRepository: counters,
+      settingsRepository: _FakeSettingsRepository(),
+      reminderScheduler: _FakeNotificationService(),
+    );
     await provider.load();
 
     await provider.reset();
@@ -199,10 +222,14 @@ void main() {
   });
 
   test('reset(includeTotal: true) zeroes both counts', () async {
-    final storage = _FakeStorageService([
+    final counters = _FakeCountersRepository([
       _counter('a', name: 'A', currentCount: 42, totalCount: 100),
     ]);
-    final provider = CountersProvider(storage, _FakeNotificationService());
+    final provider = CountersProvider(
+      countersRepository: counters,
+      settingsRepository: _FakeSettingsRepository(),
+      reminderScheduler: _FakeNotificationService(),
+    );
     await provider.load();
 
     await provider.reset(includeTotal: true);
@@ -212,8 +239,12 @@ void main() {
   });
 
   test('addCounter appends and activates', () async {
-    final storage = _FakeStorageService([_counter('a', name: 'A')]);
-    final provider = CountersProvider(storage, _FakeNotificationService());
+    final counters = _FakeCountersRepository([_counter('a', name: 'A')]);
+    final provider = CountersProvider(
+      countersRepository: counters,
+      settingsRepository: _FakeSettingsRepository(),
+      reminderScheduler: _FakeNotificationService(),
+    );
     await provider.load();
 
     await provider.addCounter('جديد');
@@ -223,8 +254,12 @@ void main() {
   });
 
   test('ensureCounterNamed creates a missing counter', () async {
-    final storage = _FakeStorageService([_counter('a', name: 'A')]);
-    final provider = CountersProvider(storage, _FakeNotificationService());
+    final counters = _FakeCountersRepository([_counter('a', name: 'A')]);
+    final provider = CountersProvider(
+      countersRepository: counters,
+      settingsRepository: _FakeSettingsRepository(),
+      reminderScheduler: _FakeNotificationService(),
+    );
     await provider.load();
 
     final id = await provider.ensureCounterNamed('سبحان الله وبحمده');
@@ -235,11 +270,15 @@ void main() {
   });
 
   test('ensureCounterNamed re-activates an existing counter', () async {
-    final storage = _FakeStorageService([
+    final counters = _FakeCountersRepository([
       _counter('a', name: 'A'),
       _counter('b', name: 'B'),
     ]);
-    final provider = CountersProvider(storage, _FakeNotificationService());
+    final provider = CountersProvider(
+      countersRepository: counters,
+      settingsRepository: _FakeSettingsRepository(),
+      reminderScheduler: _FakeNotificationService(),
+    );
     await provider.load();
     await provider.setActive('b');
 
@@ -251,8 +290,12 @@ void main() {
   });
 
   test('renameCounter updates the name', () async {
-    final storage = _FakeStorageService([_counter('a', name: 'A')]);
-    final provider = CountersProvider(storage, _FakeNotificationService());
+    final counters = _FakeCountersRepository([_counter('a', name: 'A')]);
+    final provider = CountersProvider(
+      countersRepository: counters,
+      settingsRepository: _FakeSettingsRepository(),
+      reminderScheduler: _FakeNotificationService(),
+    );
     await provider.load();
 
     await provider.renameCounter('a', 'Renamed');
@@ -261,11 +304,15 @@ void main() {
   });
 
   test('deleteCounter removes and re-activates the first remaining', () async {
-    final storage = _FakeStorageService([
+    final counters = _FakeCountersRepository([
       _counter('a', name: 'A'),
       _counter('b', name: 'B'),
     ]);
-    final provider = CountersProvider(storage, _FakeNotificationService());
+    final provider = CountersProvider(
+      countersRepository: counters,
+      settingsRepository: _FakeSettingsRepository(),
+      reminderScheduler: _FakeNotificationService(),
+    );
     await provider.load();
     await provider.setActive('a');
 
@@ -276,9 +323,13 @@ void main() {
   });
 
   test('setRemindersEnabled enables when permission is granted', () async {
-    final storage = _FakeStorageService([_counter('a', name: 'A')]);
+    final counters = _FakeCountersRepository([_counter('a', name: 'A')]);
     final notif = _FakeNotificationService()..permissionGranted = true;
-    final provider = CountersProvider(storage, notif);
+    final provider = CountersProvider(
+      countersRepository: counters,
+      settingsRepository: _FakeSettingsRepository(),
+      reminderScheduler: notif,
+    );
     await provider.load();
 
     final result = await provider.setRemindersEnabled('a', true);
@@ -289,9 +340,13 @@ void main() {
   });
 
   test('setRemindersEnabled keeps disabled when permission is denied', () async {
-    final storage = _FakeStorageService([_counter('a', name: 'A')]);
+    final counters = _FakeCountersRepository([_counter('a', name: 'A')]);
     final notif = _FakeNotificationService()..permissionGranted = false;
-    final provider = CountersProvider(storage, notif);
+    final provider = CountersProvider(
+      countersRepository: counters,
+      settingsRepository: _FakeSettingsRepository(),
+      reminderScheduler: notif,
+    );
     await provider.load();
 
     final result = await provider.setRemindersEnabled('a', true);
@@ -303,11 +358,15 @@ void main() {
 
   test('setReminderType prayer persists and passes settings to reschedule',
       () async {
-    final storage = _FakeStorageService([
+    final counters = _FakeCountersRepository([
       _counter('a', name: 'A'),
     ]);
     final notif = _FakeNotificationService();
-    final provider = CountersProvider(storage, notif);
+    final provider = CountersProvider(
+      countersRepository: counters,
+      settingsRepository: _FakeSettingsRepository(),
+      reminderScheduler: notif,
+    );
     await provider.load();
     await provider.setDailyTarget('a', 5);
 
@@ -319,8 +378,12 @@ void main() {
   });
 
   test('setPrayerOffset persists the offset', () async {
-    final storage = _FakeStorageService([_counter('a', name: 'A')]);
-    final provider = CountersProvider(storage, _FakeNotificationService());
+    final counters = _FakeCountersRepository([_counter('a', name: 'A')]);
+    final provider = CountersProvider(
+      countersRepository: counters,
+      settingsRepository: _FakeSettingsRepository(),
+      reminderScheduler: _FakeNotificationService(),
+    );
     await provider.load();
 
     await provider.setPrayerOffset('a', 20);
@@ -329,9 +392,13 @@ void main() {
   });
 
   test('notifyDailyTargetReached shows the active counter name', () async {
-    final storage = _FakeStorageService([_counter('a', name: 'سبحان الله')]);
+    final counters = _FakeCountersRepository([_counter('a', name: 'سبحان الله')]);
     final notif = _FakeNotificationService();
-    final provider = CountersProvider(storage, notif);
+    final provider = CountersProvider(
+      countersRepository: counters,
+      settingsRepository: _FakeSettingsRepository(),
+      reminderScheduler: notif,
+    );
     await provider.load();
 
     await provider.notifyDailyTargetReached();
@@ -340,25 +407,33 @@ void main() {
   });
 
   test('setActive persists the active counter id', () async {
-    final storage = _FakeStorageService([
+    final counters = _FakeCountersRepository([
       _counter('a', name: 'A'),
       _counter('b', name: 'B'),
     ]);
-    final provider = CountersProvider(storage, _FakeNotificationService());
+    final provider = CountersProvider(
+      countersRepository: counters,
+      settingsRepository: _FakeSettingsRepository(),
+      reminderScheduler: _FakeNotificationService(),
+    );
     await provider.load();
 
     await provider.setActive('b');
 
-    expect(storage.activeId, 'b');
+    expect(counters.activeId, 'b');
   });
 
   test('load restores the persisted active counter id', () async {
-    final storage = _FakeStorageService([
+    final counters = _FakeCountersRepository([
       _counter('a', name: 'A'),
       _counter('b', name: 'B'),
     ]);
-    storage.activeId = 'b';
-    final provider = CountersProvider(storage, _FakeNotificationService());
+    counters.activeId = 'b';
+    final provider = CountersProvider(
+      countersRepository: counters,
+      settingsRepository: _FakeSettingsRepository(),
+      reminderScheduler: _FakeNotificationService(),
+    );
 
     await provider.load();
 
@@ -367,12 +442,16 @@ void main() {
 
   test('load falls back to the first counter when the persisted id is stale',
       () async {
-    final storage = _FakeStorageService([
+    final counters = _FakeCountersRepository([
       _counter('a', name: 'A'),
       _counter('b', name: 'B'),
     ]);
-    storage.activeId = 'gone';
-    final provider = CountersProvider(storage, _FakeNotificationService());
+    counters.activeId = 'gone';
+    final provider = CountersProvider(
+      countersRepository: counters,
+      settingsRepository: _FakeSettingsRepository(),
+      reminderScheduler: _FakeNotificationService(),
+    );
 
     await provider.load();
 
@@ -381,7 +460,7 @@ void main() {
 
   test('rolloverIfNewDay archives a previous-day count', () async {
     final yesterday = DateTime.now().subtract(const Duration(days: 1));
-    final storage = _FakeStorageService([
+    final counters = _FakeCountersRepository([
       _counter(
         'a',
         name: 'A',
@@ -390,7 +469,11 @@ void main() {
         lastUsedAt: yesterday,
       ),
     ]);
-    final provider = CountersProvider(storage, _FakeNotificationService());
+    final provider = CountersProvider(
+      countersRepository: counters,
+      settingsRepository: _FakeSettingsRepository(),
+      reminderScheduler: _FakeNotificationService(),
+    );
     await provider.load();
 
     await provider.rolloverIfNewDay();
@@ -401,7 +484,7 @@ void main() {
 
   test('rolloverIfNewDay clears the undo buffer', () async {
     final yesterday = DateTime.now().subtract(const Duration(days: 1));
-    final storage = _FakeStorageService([
+    final counters = _FakeCountersRepository([
       _counter(
         'a',
         name: 'A',
@@ -410,7 +493,11 @@ void main() {
         lastUsedAt: yesterday,
       ),
     ]);
-    final provider = CountersProvider(storage, _FakeNotificationService());
+    final provider = CountersProvider(
+      countersRepository: counters,
+      settingsRepository: _FakeSettingsRepository(),
+      reminderScheduler: _FakeNotificationService(),
+    );
     await provider.load();
 
     await provider.increment();
@@ -421,4 +508,3 @@ void main() {
     expect(provider.canUndo, isFalse);
   });
 }
-

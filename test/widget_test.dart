@@ -11,11 +11,12 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:salawat_app/domain/entities/adhkar_counter.dart';
 import 'package:salawat_app/domain/entities/app_settings.dart';
 import 'package:salawat_app/data/backup_service.dart';
+import 'package:salawat_app/data/counters_repository_impl.dart';
+import 'package:salawat_app/data/settings_repository_impl.dart';
 import 'package:salawat_app/shared/widgets/celebration_burst.dart';
 import 'package:salawat_app/features/counting/counters_provider.dart';
 import 'package:salawat_app/features/settings/settings_provider.dart';
 import 'package:salawat_app/data/notifications/notification_service.dart';
-import 'package:salawat_app/data/storage_service.dart';
 
 const MethodChannel _notificationsChannel =
     MethodChannel('dexterous.com/flutter/local_notifications');
@@ -31,8 +32,8 @@ Future<void> pumpApp(
   WidgetTester tester, {
   NotificationService? notificationService,
 }) async {
-  final storageService = StorageService();
-  await storageService.init();
+  final countersRepository = CountersRepositoryImpl();
+  final settingsRepository = SettingsRepositoryImpl();
 
   final notif = notificationService ?? NotificationService();
   AndroidFlutterLocalNotificationsPlugin.registerWith();
@@ -42,14 +43,22 @@ Future<void> pumpApp(
     MultiProvider(
       providers: [
         ChangeNotifierProvider(
-          create: (_) => CountersProvider(storageService, notif)..load(),
+          create: (_) => CountersProvider(
+            countersRepository: countersRepository,
+            settingsRepository: settingsRepository,
+            reminderScheduler: notif,
+          )..load(),
         ),
         ChangeNotifierProvider(
-          create: (_) => SettingsProvider(storageService)..load(),
+          create: (_) =>
+              SettingsProvider(settingsRepository: settingsRepository)..load(),
         ),
         Provider<NotificationService>.value(value: notif),
         Provider<BackupService>.value(
-          value: BackupService(storage: storageService),
+          value: BackupService(
+            counters: countersRepository,
+            settings: settingsRepository,
+          ),
         ),
       ],
       child: const MyApp(),

@@ -7,7 +7,8 @@ import 'package:salawat_app/features/counting/counters_provider.dart';
 import 'package:salawat_app/features/counting/screens/home_screen.dart';
 import 'package:salawat_app/features/library/library_screen.dart';
 import 'package:salawat_app/data/notifications/notification_service.dart';
-import 'package:salawat_app/data/storage_service.dart';
+import 'package:salawat_app/data/counters_repository_impl.dart';
+import 'package:salawat_app/data/settings_repository_impl.dart';
 import 'package:salawat_app/features/shell/decorative_app_shell.dart';
 
 class _FakeNotificationService extends NotificationService {}
@@ -15,15 +16,18 @@ class _FakeNotificationService extends NotificationService {}
 Future<void> _pumpShell(WidgetTester tester) async {
   SharedPreferences.setMockInitialValues({});
 
-  final storage = StorageService();
-  await storage.init();
+  final countersRepository = CountersRepositoryImpl();
+  final settingsRepository = SettingsRepositoryImpl();
 
   await tester.pumpWidget(
     MultiProvider(
       providers: [
         ChangeNotifierProvider(
-          create: (_) =>
-              CountersProvider(storage, _FakeNotificationService())..load(),
+          create: (_) => CountersProvider(
+            countersRepository: countersRepository,
+            settingsRepository: settingsRepository,
+            reminderScheduler: _FakeNotificationService(),
+          )..load(),
         ),
       ],
       child: MaterialApp(

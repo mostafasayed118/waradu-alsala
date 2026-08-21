@@ -4,10 +4,11 @@ import 'package:timezone/data/latest_all.dart' as tz;
 
 import 'package:salawat_app/domain/entities/adhkar_counter.dart';
 import 'package:salawat_app/domain/entities/app_settings.dart';
+import 'package:salawat_app/domain/repositories/reminder_scheduler.dart';
 import 'package:salawat_app/core/l10n/app_strings.dart';
 import 'package:salawat_app/data/notifications/prayer_schedule.dart';
 
-class NotificationService {
+class NotificationService implements ReminderScheduler {
   NotificationService();
 
   final FlutterLocalNotificationsPlugin _notifications =
@@ -47,6 +48,7 @@ class NotificationService {
     return init();
   }
 
+  @override
   Future<bool> requestPermission() async {
     await _ensureInitialized();
     final android = _notifications.resolvePlatformSpecificImplementation<
@@ -77,6 +79,7 @@ class NotificationService {
   /// [ReminderType.prayer] counters need [settings] with a configured
   /// location; solar times drift daily, so a rolling window of the next few
   /// days is scheduled explicitly and refreshed on every app open.
+  @override
   Future<void> rescheduleAll(
     List<AdhkarCounter> counters, {
     AppSettings? settings,
@@ -139,6 +142,7 @@ class NotificationService {
     }
   }
 
+  @override
   Future<void> showDailyTargetReached(String counterName) async {
     await _ensureInitialized();
     await _notifications.show(

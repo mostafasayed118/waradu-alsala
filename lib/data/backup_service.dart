@@ -2,7 +2,8 @@ import 'dart:convert';
 
 import 'package:salawat_app/domain/entities/adhkar_counter.dart';
 import 'package:salawat_app/domain/entities/app_settings.dart';
-import 'package:salawat_app/data/storage_service.dart';
+import 'package:salawat_app/domain/repositories/counters_repository.dart';
+import 'package:salawat_app/domain/repositories/settings_repository.dart';
 
 enum BackupErrorCode { invalidFormat, versionMismatch, emptyBackup }
 
@@ -24,9 +25,10 @@ class BackupData {
 }
 
 class BackupService {
-  BackupService({required this._storage});
+  BackupService({required this._counters, required this._settings});
 
-  final StorageService _storage;
+  final CountersRepository _counters;
+  final SettingsRepository _settings;
 
   static const int _backupVersion = 1;
 
@@ -100,15 +102,15 @@ class BackupService {
   }
 
   Future<void> applyBackup(BackupData data) async {
-    await _storage.saveCounters(data.counters);
-    await _storage.saveSettings(data.settings);
-    await _storage.saveActiveCounterId(data.activeCounterId);
+    await _counters.saveCounters(data.counters);
+    await _settings.saveSettings(data.settings);
+    await _counters.saveActiveCounterId(data.activeCounterId);
   }
 
   Future<String> buildJsonBackup() async {
-    final counters = await _storage.getCounters();
-    final settings = await _storage.getSettings();
-    final storedActiveId = await _storage.getActiveCounterId();
+    final counters = await _counters.getCounters();
+    final settings = await _settings.getSettings();
+    final storedActiveId = await _counters.getActiveCounterId();
     final activeCounterId =
         storedActiveId != null && counters.any((c) => c.id == storedActiveId)
             ? storedActiveId
@@ -129,7 +131,7 @@ class BackupService {
       '"counterId","counterName","date","count"';
 
   Future<String> buildCsv() async {
-    final counters = await _storage.getCounters();
+    final counters = await _counters.getCounters();
     final buffer = StringBuffer('\uFEFF');
     buffer.writeln(_csvCountersHeader);
     for (final c in counters) {

@@ -5,14 +5,16 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:salawat_app/domain/entities/adhkar_counter.dart';
 import 'package:salawat_app/domain/entities/app_settings.dart';
 import 'package:salawat_app/data/backup_service.dart';
-import 'package:salawat_app/data/storage_service.dart';
+import 'package:salawat_app/data/counters_repository_impl.dart';
+import 'package:salawat_app/data/settings_repository_impl.dart';
 
 void main() {
-  Future<StorageService> storageWith(Map<String, Object> values) async {
+  Future<BackupService> serviceWith(Map<String, Object> values) async {
     SharedPreferences.setMockInitialValues(values);
-    final storage = StorageService();
-    await storage.init();
-    return storage;
+    return BackupService(
+      counters: CountersRepositoryImpl(),
+      settings: SettingsRepositoryImpl(),
+    );
   }
 
   String validJson({Object? version = 1, Object? counters, Object? settings}) {
@@ -28,9 +30,6 @@ void main() {
           ],
     });
   }
-
-  Future<BackupService> serviceWith(Map<String, Object> values) async =>
-      BackupService(storage: await storageWith(values));
 
   group('parseJsonBackup', () {
     test('rejects malformed JSON with invalidFormat', () async {
@@ -172,13 +171,12 @@ void main() {
         reminderType: ReminderType.daily,
         dailyReminderTimes: [480, 1020],
       );
-      final storage = await storageWith({
+      final service = await serviceWith({
         'adhkar_counters':
             jsonEncode([counter.toJson(), AdhkarCounter(id: 'salawat', name: 'الصلاة على النبي ﷺ').toJson()]),
         'app_settings': jsonEncode({'vibrationEnabled': false, 'isDarkMode': true}),
         'active_counter_id': 'custom-1',
       });
-      final service = BackupService(storage: storage);
 
       final data = service.parseJsonBackup(await service.buildJsonBackup());
 
@@ -200,12 +198,11 @@ void main() {
 
     test('resolves active id to first counter when stored id is unknown',
         () async {
-      final storage = await storageWith({
+      final service = await serviceWith({
         'adhkar_counters': jsonEncode(
             [AdhkarCounter(id: 'salawat', name: 'الصلاة على النبي ﷺ').toJson()]),
         'active_counter_id': 'ghost',
       });
-      final service = BackupService(storage: storage);
 
       final data = service.parseJsonBackup(await service.buildJsonBackup());
 
@@ -226,10 +223,9 @@ void main() {
         dailyReminderTimes: [480, 1020],
         history: {'2026-08-19': 33, '2026-08-20': 7},
       );
-      final storage = await storageWith({
+      final service = await serviceWith({
         'adhkar_counters': jsonEncode([counter.toJson()]),
       });
-      final service = BackupService(storage: storage);
 
       final csv = await service.buildCsv();
 
@@ -259,10 +255,9 @@ void main() {
         reminderType: ReminderType.interval,
         history: {'2026-08-19': 0},
       );
-      final storage = await storageWith({
+      final service = await serviceWith({
         'adhkar_counters': jsonEncode([counter.toJson()]),
       });
-      final service = BackupService(storage: storage);
 
       final csv = await service.buildCsv();
 
@@ -271,11 +266,10 @@ void main() {
     });
 
     test('leaves lastResetAt empty when null', () async {
-      final storage = await storageWith({
+      final service = await serviceWith({
         'adhkar_counters': jsonEncode(
             [AdhkarCounter(id: 'a', name: 'x').toJson()]),
       });
-      final service = BackupService(storage: storage);
 
       final csv = await service.buildCsv();
 
@@ -285,13 +279,16 @@ void main() {
 
   group('applyBackup', () {
     test('replaces counters, settings, and active id in storage', () async {
-      final storage = await storageWith({
+      SharedPreferences.setMockInitialValues({
         'adhkar_counters': jsonEncode(
             [AdhkarCounter(id: 'old', name: 'قديم', totalCount: 5).toJson()]),
         'app_settings': jsonEncode({'vibrationEnabled': true, 'isDarkMode': false}),
         'active_counter_id': 'old',
       });
-      final service = BackupService(storage: storage);
+      final countersRepo = CountersRepositoryImpl();
+      final settingsRepo = SettingsRepositoryImpl();
+      final service =
+          BackupService(counters: countersRepo, settings: settingsRepo);
 
       final incoming = AdhkarCounter(
         id: 'salawat',
@@ -305,15 +302,15 @@ void main() {
         activeCounterId: 'salawat',
       ));
 
-      final counters = await storage.getCounters();
+      final counters = await countersRepo.getCounters();
       expect(counters, hasLength(1));
       expect(counters.single.id, 'salawat');
       expect(counters.single.totalCount, 99);
       expect(counters.single.history, {'2026-08-20': 7});
-      final settings = await storage.getSettings();
+      final settings = await settingsRepo.getSettings();
       expect(settings.vibrationEnabled, isFalse);
       expect(settings.isDarkMode, isTrue);
-      expect(await storage.getActiveCounterId(), 'salawat');
+      expect(await countersRepo.getActiveCounterId(), 'salawat');
     });
   });
 }

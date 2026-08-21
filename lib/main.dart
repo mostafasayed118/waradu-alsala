@@ -6,7 +6,8 @@ import 'package:home_widget/home_widget.dart';
 import 'package:provider/provider.dart';
 import 'package:salawat_app/features/counting/counters_provider.dart';
 import 'package:salawat_app/features/settings/settings_provider.dart';
-import 'package:salawat_app/data/storage_service.dart';
+import 'package:salawat_app/data/counters_repository_impl.dart';
+import 'package:salawat_app/data/settings_repository_impl.dart';
 import 'package:salawat_app/data/notifications/notification_service.dart';
 import 'package:salawat_app/data/backup_service.dart';
 import 'package:salawat_app/data/widget/widget_sync_service.dart';
@@ -21,9 +22,9 @@ import 'package:salawat_app/features/shell/decorative_app_shell.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Initialize services
-  final storageService = StorageService();
-  await storageService.init();
+  // Repositories and services
+  final countersRepository = CountersRepositoryImpl();
+  final settingsRepository = SettingsRepositoryImpl();
 
   final notificationService = NotificationService();
   // Timezone DB load is slow; don't block the first frame on it. The service
@@ -37,15 +38,22 @@ void main() async {
     MultiProvider(
       providers: [
         ChangeNotifierProvider(
-          create: (_) =>
-              CountersProvider(storageService, notificationService)..load(),
+          create: (_) => CountersProvider(
+            countersRepository: countersRepository,
+            settingsRepository: settingsRepository,
+            reminderScheduler: notificationService,
+          )..load(),
         ),
         ChangeNotifierProvider(
-          create: (_) => SettingsProvider(storageService)..load(),
+          create: (_) =>
+              SettingsProvider(settingsRepository: settingsRepository)..load(),
         ),
         Provider<NotificationService>.value(value: notificationService),
         Provider<BackupService>.value(
-          value: BackupService(storage: storageService),
+          value: BackupService(
+            counters: countersRepository,
+            settings: settingsRepository,
+          ),
         ),
       ],
       child: const MyApp(),

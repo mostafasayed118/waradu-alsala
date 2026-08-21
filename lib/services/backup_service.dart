@@ -24,7 +24,7 @@ class BackupData {
 }
 
 class BackupService {
-  BackupService({required StorageService storage}) : _storage = storage;
+  BackupService({required this._storage});
 
   final StorageService _storage;
 
@@ -139,7 +139,7 @@ class BackupService {
         _csvField('${c.totalCount}'),
         _csvField('${c.dailyTarget}'),
         _csvField('${c.remindersEnabled}'),
-        _csvField(c.reminderType == ReminderType.interval ? 'interval' : 'daily'),
+        _csvField(c.reminderType.name),
         _csvField('${c.reminderIntervalMinutes}'),
         _csvField(c.dailyReminderTimes.join(';')),
         _csvField(c.lastUsedAt.toIso8601String()),
@@ -165,3 +165,4 @@ class BackupService {
   static String _csvField(String value) =>
       '"${value.replaceAll('"', '""')}"';
 }
+

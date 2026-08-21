@@ -22,9 +22,35 @@ class SettingsProvider with ChangeNotifier {
     notifyListeners();
   }
 
+  Future<void> toggleSound(bool enabled) async {
+    _settings = _settings.copyWith(soundEnabled: enabled);
+    await _storage.saveSettings(_settings);
+    notifyListeners();
+  }
+
+  Future<void> setLanguage(String code) async {
+    _settings = _settings.copyWith(languageCode: code);
+    await _storage.saveSettings(_settings);
+    notifyListeners();
+  }
+
+  Future<void> setPrayerLocation(double latitude, double longitude) async {
+    _settings =
+        _settings.copyWith(latitude: latitude, longitude: longitude);
+    await _storage.saveSettings(_settings);
+    notifyListeners();
+  }
+
+  Future<void> setCalculationMethod(String method) async {
+    _settings = _settings.copyWith(calculationMethod: method);
+    await _storage.saveSettings(_settings);
+    notifyListeners();
+  }
+
   Future<void> toggleDarkMode(bool enabled) async {
     _settings = _settings.copyWith(isDarkMode: enabled);
     await _storage.saveSettings(_settings);
     notifyListeners();
   }
 }
+

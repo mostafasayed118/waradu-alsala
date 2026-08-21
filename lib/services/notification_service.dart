@@ -1,8 +1,11 @@
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:timezone/timezone.dart' as tz;
 import 'package:timezone/data/latest_all.dart' as tz;
+
 import '../models/adhkar_counter.dart';
+import '../models/app_settings.dart';
 import '../utils/app_strings.dart';
+import '../utils/prayer_schedule.dart';
 
 class NotificationService {
   NotificationService();
@@ -10,10 +13,16 @@ class NotificationService {
   final FlutterLocalNotificationsPlugin _notifications =
       FlutterLocalNotificationsPlugin();
   bool _initialized = false;
+  Future<void>? _initFuture;
 
-  Future<void> init() async {
-    if (_initialized) return;
+  /// Idempotent and safe to call before use; starts init once and returns
+  /// the same future on repeat calls.
+  Future<void> init() {
+    if (_initialized) return Future.value();
+    return _initFuture ??= _doInit();
+  }
 
+  Future<void> _doInit() async {
     tz.initializeTimeZones();
 
     const androidSettings = AndroidInitializationSettings('@mipmap/ic_launcher');
@@ -28,11 +37,18 @@ class NotificationService {
       iOS: iosSettings,
     );
 
-    await _notifications.initialize(initSettings);
+    await _notifications.initialize(settings: initSettings);
     _initialized = true;
   }
 
+  /// Ensures init has started/completed before any plugin or tz usage.
+  Future<void> _ensureInitialized() {
+    if (_initialized) return Future.value();
+    return init();
+  }
+
   Future<bool> requestPermission() async {
+    await _ensureInitialized();
     final android = _notifications.resolvePlatformSpecificImplementation<
         AndroidFlutterLocalNotificationsPlugin>();
     if (android != null) {
@@ -57,7 +73,15 @@ class NotificationService {
   /// Cancels all scheduled reminders, then schedules each counter whose
   /// reminders are enabled using a distinct id range
   /// (`idBase = 100 + index * 100`).
-  Future<void> rescheduleAll(List<AdhkarCounter> counters) async {
+  ///
+  /// [ReminderType.prayer] counters need [settings] with a configured
+  /// location; solar times drift daily, so a rolling window of the next few
+  /// days is scheduled explicitly and refreshed on every app open.
+  Future<void> rescheduleAll(
+    List<AdhkarCounter> counters, {
+    AppSettings? settings,
+  }) async {
+    await _ensureInitialized();
     await cancelAllNotifications();
 
     for (var i = 0; i < counters.length; i++) {
@@ -70,28 +94,44 @@ class NotificationService {
         final scheduledTime = tz.TZDateTime.now(tz.local)
             .add(Duration(minutes: counter.reminderIntervalMinutes));
         await _notifications.zonedSchedule(
-          idBase,
-          counter.name,
-          AppStrings.reminderBody,
-          scheduledTime,
-          _details(),
+          id: idBase,
+          title: counter.name,
+          body: AppStrings.reminderBody,
+          scheduledDate: scheduledTime,
+          notificationDetails: _details(),
           androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
-          uiLocalNotificationDateInterpretation:
-              UILocalNotificationDateInterpretation.absoluteTime,
-          matchDateTimeComponents: null,
         );
+      } else if (counter.reminderType == ReminderType.prayer) {
+        final lat = settings?.latitude;
+        final lng = settings?.longitude;
+        if (lat == null || lng == null) continue;
+        final times = prayerReminderTimes(
+          latitude: lat,
+          longitude: lng,
+          method: settings?.calculationMethod ?? 'muslim_world_league',
+          offsetMinutes: counter.prayerOffsetMinutes,
+          now: DateTime.now(),
+        );
+        for (var j = 0; j < times.length && j < _maxPrayerNotifications; j++) {
+          await _notifications.zonedSchedule(
+            id: idBase + j,
+            title: counter.name,
+            body: AppStrings.reminderBody,
+            scheduledDate: tz.TZDateTime.from(times[j], tz.local),
+            notificationDetails: _details(),
+            androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+          );
+        }
       } else {
         for (var j = 0; j < counter.dailyReminderTimes.length; j++) {
           final time = counter.dailyReminderTimes[j];
           await _notifications.zonedSchedule(
-            idBase + j,
-            counter.name,
-            AppStrings.reminderBody,
-            _nextInstanceOfTime(time ~/ 60, time % 60),
-            _details(),
+            id: idBase + j,
+            title: counter.name,
+            body: AppStrings.reminderBody,
+            scheduledDate: _nextInstanceOfTime(time ~/ 60, time % 60),
+            notificationDetails: _details(),
             androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
-            uiLocalNotificationDateInterpretation:
-                UILocalNotificationDateInterpretation.absoluteTime,
             matchDateTimeComponents: DateTimeComponents.time,
           );
         }
@@ -100,15 +140,20 @@ class NotificationService {
   }
 
   Future<void> showDailyTargetReached(String counterName) async {
+    await _ensureInitialized();
     await _notifications.show(
-      _targetReachedNotificationId,
-      AppStrings.targetReachedTitle,
-      '${AppStrings.targetReachedBody}: $counterName',
-      _details(),
+      id: _targetReachedNotificationId,
+      title: AppStrings.targetReachedTitle,
+      body: '${AppStrings.targetReachedBody}: $counterName',
+      notificationDetails: _details(),
     );
   }
 
   static const int _targetReachedNotificationId = 9999;
+
+  /// Cap per prayer counter (5 prayers × 3 days = 15; headroom for edge
+  /// cases) so a misconfigured device clock cannot flood the alarm manager.
+  static const int _maxPrayerNotifications = 16;
 
   NotificationDetails _details() => const NotificationDetails(
         android: AndroidNotificationDetails(
@@ -138,6 +183,8 @@ class NotificationService {
   }
 
   Future<void> cancelAllNotifications() async {
+    await _ensureInitialized();
     await _notifications.cancelAll();
   }
 }
+

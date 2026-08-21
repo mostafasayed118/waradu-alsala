@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:file_picker/file_picker.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -11,6 +12,7 @@ import 'package:salawat_app/main.dart';
 import 'package:salawat_app/providers/counters_provider.dart';
 import 'package:salawat_app/providers/settings_provider.dart';
 import 'package:salawat_app/services/backup_service.dart';
+import 'package:share_plus/share_plus.dart';
 import 'package:salawat_app/services/notification_service.dart';
 import 'package:salawat_app/services/storage_service.dart';
 
@@ -26,6 +28,7 @@ Future<void> pumpApp(WidgetTester tester) async {
   await storageService.init();
 
   final notif = NotificationService();
+  AndroidFlutterLocalNotificationsPlugin.registerWith();
   await notif.init();
 
   await tester.pumpWidget(
@@ -54,26 +57,51 @@ Future<void> openSettings(WidgetTester tester) async {
   await tester.pumpAndSettle();
 }
 
-class _FakeFilePicker extends FilePicker {
-  _FakeFilePicker(this.result);
-  final FilePickerResult? result;
+base class _FakePlatformFile extends PlatformFile {
+  _FakePlatformFile(this.content);
+
+  final Uint8List content;
 
   @override
-  Future<FilePickerResult?> pickFiles({
+  String get name => 'zikr-backup.json';
+
+  @override
+  Uri get uri => Uri.dataFromBytes(content, mimeType: 'application/json');
+
+  @override
+  XFile get xFile => XFile.fromData(content, name: name);
+
+  @override
+  Future<int> length() async => content.length;
+
+  @override
+  Future<Uint8List> readAsBytes() async => content;
+
+  @override
+  Stream<Uint8List> readAsByteStream() => Stream.value(content);
+}
+
+class _FakeFilePickerPlatform extends FilePickerPlatform {
+  _FakeFilePickerPlatform(this.files);
+
+  final List<PlatformFile> files;
+
+  @override
+  Future<List<PlatformFile>> pickFiles({
     String? dialogTitle,
     String? initialDirectory,
     FileType type = FileType.any,
     List<String>? allowedExtensions,
     Function(FilePickerStatus)? onFileLoading,
-    bool allowCompression = true,
-    int compressionQuality = 30,
-    bool allowMultiple = false,
+    int compressionQuality = 0,
+    bool allowMultiple = true,
     bool withData = false,
-    bool withReadStream = false,
-    bool lockParentWindow = false,
-    bool readSequential = false,
+    AndroidOptions androidOptions = const AndroidOptions(),
+    LinuxOptions linuxOptions = const LinuxOptions(),
+    WindowsOptions windowsOptions = const WindowsOptions(),
+    WebOptions webOptions = const WebOptions(),
   }) async {
-    return result;
+    return files;
   }
 }
 
@@ -102,16 +130,8 @@ String backupJson({String name = 'الصلاة على النبي ﷺ', int count
   });
 }
 
-FilePickerResult pickerResult(String content) {
-  final bytes = utf8.encode(content);
-  return FilePickerResult([
-    PlatformFile(
-      name: 'zikr-backup.json',
-      size: bytes.length,
-      bytes: bytes,
-    ),
-  ]);
-}
+List<PlatformFile> pickerResult(String content) =>
+    [_FakePlatformFile(utf8.encode(content))];
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -154,7 +174,7 @@ void main() {
     final sharedPaths = <String>[];
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(_shareChannel, (MethodCall call) async {
-      if (call.method == 'shareFiles') {
+      if (call.method == 'share') {
         final args = call.arguments as Map<dynamic, dynamic>;
         sharedPaths.addAll((args['paths'] as List).cast<String>());
       }
@@ -198,7 +218,7 @@ void main() {
         },
       ]),
     });
-    FilePicker.platform = _FakeFilePicker(pickerResult(backupJson()));
+    FilePickerPlatform.instance = _FakeFilePickerPlatform(pickerResult(backupJson()));
     tester.view.physicalSize = const Size(800, 1600);
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.reset);
@@ -228,8 +248,7 @@ void main() {
 
   testWidgets('restore accepts a UTF-8-BOM-prefixed backup file',
       (WidgetTester tester) async {
-    FilePicker.platform =
-        _FakeFilePicker(pickerResult('\uFEFF${backupJson()}'));
+    FilePickerPlatform.instance = _FakeFilePickerPlatform(pickerResult('\uFEFF${backupJson()}'));
     tester.view.physicalSize = const Size(800, 1600);
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.reset);
@@ -270,7 +289,7 @@ void main() {
         },
       ]),
     });
-    FilePicker.platform = _FakeFilePicker(pickerResult(backupJson()));
+    FilePickerPlatform.instance = _FakeFilePickerPlatform(pickerResult(backupJson()));
     tester.view.physicalSize = const Size(800, 1600);
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.reset);
@@ -293,7 +312,7 @@ void main() {
 
   testWidgets('invalid backup file shows an error and no dialog',
       (WidgetTester tester) async {
-    FilePicker.platform = _FakeFilePicker(pickerResult('not json'));
+    FilePickerPlatform.instance = _FakeFilePickerPlatform(pickerResult('not json'));
     tester.view.physicalSize = const Size(800, 1600);
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.reset);
@@ -312,3 +331,8 @@ void main() {
     );
   });
 }
+
+
+
+
+

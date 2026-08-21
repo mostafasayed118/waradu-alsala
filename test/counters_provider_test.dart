@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:salawat_app/models/adhkar_counter.dart';
+import 'package:salawat_app/models/app_settings.dart';
 import 'package:salawat_app/providers/counters_provider.dart';
 import 'package:salawat_app/services/notification_service.dart';
 import 'package:salawat_app/services/storage_service.dart';
@@ -10,6 +11,7 @@ class _FakeStorageService extends StorageService {
 
   List<AdhkarCounter> stored;
   String? activeId;
+  AppSettings settings = AppSettings();
 
   @override
   Future<List<AdhkarCounter>> getCounters() async => stored;
@@ -26,19 +28,30 @@ class _FakeStorageService extends StorageService {
   Future<void> saveActiveCounterId(String? id) async {
     activeId = id;
   }
+
+  @override
+  Future<AppSettings> getSettings() async => settings;
+
+  @override
+  Future<void> saveSettings(AppSettings value) async {
+    settings = value;
+  }
 }
 
 class _FakeNotificationService extends NotificationService {
   bool permissionGranted = true;
   int rescheduleCalls = 0;
+  AppSettings? lastSettings;
   final List<String> targetReachedNames = [];
 
   @override
   Future<bool> requestPermission() async => permissionGranted;
 
   @override
-  Future<void> rescheduleAll(List<AdhkarCounter> counters) async {
+  Future<void> rescheduleAll(List<AdhkarCounter> counters,
+      {AppSettings? settings}) async {
     rescheduleCalls++;
+    lastSettings = settings;
   }
 
   @override
@@ -209,6 +222,34 @@ void main() {
     expect(provider.activeCounter.name, 'جديد');
   });
 
+  test('ensureCounterNamed creates a missing counter', () async {
+    final storage = _FakeStorageService([_counter('a', name: 'A')]);
+    final provider = CountersProvider(storage, _FakeNotificationService());
+    await provider.load();
+
+    final id = await provider.ensureCounterNamed('سبحان الله وبحمده');
+
+    expect(provider.counters.length, 2);
+    expect(provider.activeCounter.id, id);
+    expect(provider.activeCounter.name, 'سبحان الله وبحمده');
+  });
+
+  test('ensureCounterNamed re-activates an existing counter', () async {
+    final storage = _FakeStorageService([
+      _counter('a', name: 'A'),
+      _counter('b', name: 'B'),
+    ]);
+    final provider = CountersProvider(storage, _FakeNotificationService());
+    await provider.load();
+    await provider.setActive('b');
+
+    final id = await provider.ensureCounterNamed('A');
+
+    expect(provider.counters.length, 2);
+    expect(provider.activeCounter.id, id);
+    expect(provider.activeCounter.id, 'a');
+  });
+
   test('renameCounter updates the name', () async {
     final storage = _FakeStorageService([_counter('a', name: 'A')]);
     final provider = CountersProvider(storage, _FakeNotificationService());
@@ -258,6 +299,33 @@ void main() {
     expect(result, isFalse);
     expect(provider.activeCounter.remindersEnabled, isFalse);
     expect(notif.rescheduleCalls, 0);
+  });
+
+  test('setReminderType prayer persists and passes settings to reschedule',
+      () async {
+    final storage = _FakeStorageService([
+      _counter('a', name: 'A'),
+    ]);
+    final notif = _FakeNotificationService();
+    final provider = CountersProvider(storage, notif);
+    await provider.load();
+    await provider.setDailyTarget('a', 5);
+
+    await provider.setReminderType('a', ReminderType.prayer);
+
+    expect(provider.activeCounter.reminderType, ReminderType.prayer);
+    expect(notif.rescheduleCalls, 1);
+    expect(notif.lastSettings, isNotNull);
+  });
+
+  test('setPrayerOffset persists the offset', () async {
+    final storage = _FakeStorageService([_counter('a', name: 'A')]);
+    final provider = CountersProvider(storage, _FakeNotificationService());
+    await provider.load();
+
+    await provider.setPrayerOffset('a', 20);
+
+    expect(provider.activeCounter.prayerOffsetMinutes, 20);
   });
 
   test('notifyDailyTargetReached shows the active counter name', () async {
@@ -353,3 +421,4 @@ void main() {
     expect(provider.canUndo, isFalse);
   });
 }
+

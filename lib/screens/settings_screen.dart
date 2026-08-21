@@ -12,7 +12,7 @@ import '../providers/counters_provider.dart';
 import '../providers/settings_provider.dart';
 import '../services/backup_service.dart';
 import '../services/notification_service.dart';
-import '../utils/app_strings.dart';
+import '../utils/app_localizations.dart';
 import '../utils/app_text_styles.dart';
 import '../utils/breakpoints.dart';
 import '../utils/stats.dart';
@@ -27,45 +27,44 @@ class SettingsScreen extends StatelessWidget {
     return Consumer2<CountersProvider, SettingsProvider>(
       builder: (context, counters, settings, child) {
         final counter = counters.activeCounter;
+        final s = S.of(context);
         return MaxWidthBox(
           maxWidth: Breakpoints.settingsMaxWidth,
           child: ListView(
             padding: const EdgeInsets.all(16),
             children: [
             // Active counter section
-            _buildSectionTitle(context, 'العداد الحالي'),
+            _buildSectionTitle(context, s.activeCounterSection),
             ListTile(
               leading: _medallionIcon(context, Icons.edit),
-              title: const Text('الاسم'),
+              title: Text(s.nameLabel),
               subtitle: Text(counter.name),
               trailing: const Icon(Icons.chevron_right),
               onTap: () => _showRenameDialog(context, counters),
             ),
             ListTile(
               leading: _medallionIcon(context, Icons.flag),
-              title: const Text('الهدف اليومي'),
+              title: Text(s.dailyTargetLabel),
               subtitle: Text(
                 counter.dailyTarget > 0
-                    ? '${counter.dailyTarget} مرة'
-                    : 'غير محدد',
+                    ? s.timesUnit(counter.dailyTarget)
+                    : s.notSet,
               ),
               trailing: const Icon(Icons.chevron_right),
               onTap: () => _showDailyTargetDialog(context, counters),
             ),
             SwitchListTile(
               secondary: _medallionIcon(context, Icons.notifications_active),
-              title: const Text('التذكيرات'),
-              subtitle: const Text('استلام تذكيرات لهذا الذكر'),
+              title: Text(s.remindersLabel),
+              subtitle: Text(s.remindersSubtitle),
               value: counter.remindersEnabled,
-              activeColor: Theme.of(context).colorScheme.primary,
+              activeThumbColor: Theme.of(context).colorScheme.primary,
               onChanged: (value) async {
                 final enabled =
                     await counters.setRemindersEnabled(counter.id, value);
                 if (value && !enabled && context.mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('لم يتم منح إذن الإشعارات'),
-                    ),
+                    SnackBar(content: Text(S.of(context).notifPermissionDenied)),
                   );
                 }
               },
@@ -73,30 +72,38 @@ class SettingsScreen extends StatelessWidget {
 
             if (counter.remindersEnabled) ...[
               ListTile(
-                title: const Text('نوع التذكير'),
+                title: Text(s.reminderTypeLabel),
                 subtitle: Text(
                   counter.reminderType == ReminderType.interval
-                      ? 'تذكير متكرر كل مدة محددة'
-                      : 'تذكير في أوقات يومية',
+                      ? s.intervalTypeDesc
+                      : s.dailyTypeDesc,
                 ),
                 trailing: const Icon(Icons.chevron_right),
                 onTap: () => _showReminderTypeDialog(context, counters),
               ),
               if (counter.reminderType == ReminderType.interval)
                 ListTile(
-                  title: const Text('فاصل التذكير'),
+                  title: Text(s.intervalLabel),
                   subtitle:
-                      Text(_getIntervalText(counter.reminderIntervalMinutes)),
+                      Text(_getIntervalText(s, counter.reminderIntervalMinutes)),
                   trailing: const Icon(Icons.chevron_right),
                   onTap: () => _showIntervalDialog(context, counters),
                 ),
+              if (counter.reminderType == ReminderType.prayer)
+                ListTile(
+                  title: Text(s.prayerOffsetLabel),
+                  subtitle: Text(s.prayerOffsetSubtitle(
+                      counter.prayerOffsetMinutes)),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: () => _showPrayerOffsetDialog(context, counters),
+                ),
               if (counter.reminderType == ReminderType.daily)
                 ListTile(
-                  title: const Text('أوقات التذكير اليومية'),
+                  title: Text(s.dailyTimesLabel),
                   subtitle: Text(
                     counter.dailyReminderTimes.isEmpty
-                        ? 'لم يتم تحديد أوقات'
-                        : '${counter.dailyReminderTimes.length} أوقات محددة',
+                        ? s.noTimesSet
+                        : s.timesSetCount(counter.dailyReminderTimes.length),
                   ),
                   trailing: const Icon(Icons.chevron_right),
                   onTap: () => _showDailyTimesDialog(context, counters),
@@ -106,57 +113,102 @@ class SettingsScreen extends StatelessWidget {
               ListTile(
                 leading: _medallionIcon(context, Icons.delete,
                     iconColor: Colors.red),
-                title: const Text(
-                  'حذف العداد',
-                  style: TextStyle(color: Colors.red),
+                title: Text(
+                  s.deleteCounterLabel,
+                  style: const TextStyle(color: Colors.red),
                 ),
                 onTap: () => _showDeleteDialog(context, counters),
               ),
 
-            // Vibration section
-            _buildSectionTitle(context, 'الاستجابة'),
+            // Feedback section
+            _buildSectionTitle(context, s.feedbackSection),
             SwitchListTile(
               secondary: _medallionIcon(context, Icons.vibration),
-              title: const Text('الاهتزاز'),
-              subtitle: const Text('اهتزاز خفيف عند الضغط على زر العدد'),
+              title: Text(s.vibrationLabel),
+              subtitle: Text(s.vibrationSubtitle),
               value: settings.settings.vibrationEnabled,
-              activeColor: Theme.of(context).colorScheme.primary,
+              activeThumbColor: Theme.of(context).colorScheme.primary,
               onChanged: (value) async {
                 await settings.toggleVibration(value);
               },
             ),
+            SwitchListTile(
+              secondary: _medallionIcon(context, Icons.music_note),
+              title: Text(s.soundLabel),
+              subtitle: Text(s.soundSubtitle),
+              value: settings.settings.soundEnabled,
+              activeThumbColor: Theme.of(context).colorScheme.primary,
+              onChanged: (value) async {
+                await settings.toggleSound(value);
+              },
+            ),
 
             // Appearance section
-            _buildSectionTitle(context, 'المظهر'),
+            _buildSectionTitle(context, s.appearanceSection),
             SwitchListTile(
               secondary: _medallionIcon(context, Icons.dark_mode),
-              title: const Text('الوضع الداكن'),
-              subtitle: const Text('استخدام ألوان داكنة للتطبيق'),
+              title: Text(s.darkModeLabel),
+              subtitle: Text(s.darkModeSubtitle),
               value: settings.settings.isDarkMode,
-              activeColor: Theme.of(context).colorScheme.primary,
+              activeThumbColor: Theme.of(context).colorScheme.primary,
               onChanged: (value) async {
                 await settings.toggleDarkMode(value);
               },
             ),
+            // Language section
+            _buildSectionTitle(context, s.languageSection),
+            RadioGroup<String>(
+              groupValue: settings.settings.languageCode,
+              onChanged: (value) => settings.setLanguage(value!),
+              child: Column(
+                children: [
+                  RadioListTile<String>(
+                    secondary: _medallionIcon(context, Icons.language),
+                    title: Text(s.langSystem),
+                    value: 'system',
+                  ),
+                  RadioListTile<String>(
+                    secondary: _medallionIcon(context, Icons.language),
+                    title: Text(s.langArabic),
+                    value: 'ar',
+                  ),
+                  RadioListTile<String>(
+                    secondary: _medallionIcon(context, Icons.language),
+                    title: Text(s.langEnglish),
+                    value: 'en',
+                  ),
+                ],
+              ),
+            ),
+
+            // Prayer location section
+            _buildSectionTitle(context, s.prayerLocationSection),
+            ListTile(
+              leading: _medallionIcon(context, Icons.location_on),
+              title: Text(s.prayerLocationSection),
+              subtitle: Text(_prayerLocationSubtitle(context)),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: () => _showPrayerLocationDialog(context),
+            ),
 
             // Backup section
-            _buildSectionTitle(context, AppStrings.backupSectionTitle),
+            _buildSectionTitle(context, s.backupSectionTitle),
             ListTile(
               leading: _medallionIcon(context, Icons.ios_share),
-              title: const Text(AppStrings.exportData),
+              title: Text(s.exportData),
               trailing: const Icon(Icons.chevron_right),
               onTap: () => _showExportSheet(context),
             ),
             ListTile(
               leading: _medallionIcon(context, Icons.restore),
-              title: const Text(AppStrings.restoreBackup),
+              title: Text(s.restoreBackup),
               onTap: () => _showRestoreFlow(context),
             ),
 
             // About — pushed as a full screen, not a shell tab
             ListTile(
               leading: _medallionIcon(context, Icons.info),
-              title: const Text('حول التطبيق'),
+              title: Text(s.aboutApp),
               trailing: const Icon(Icons.chevron_right),
               onTap: () {
                 Navigator.push(
@@ -174,7 +226,136 @@ class SettingsScreen extends StatelessWidget {
     );
   }
 
+  void _showPrayerOffsetDialog(
+      BuildContext context, CountersProvider counters) {
+    final s = S.of(context);
+    final counter = counters.activeCounter;
+    final options = [5, 10, 15, 20, 30];
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(s.prayerOffsetLabel),
+        content: SizedBox(
+          width: double.maxFinite,
+          child: ListView.builder(
+            shrinkWrap: true,
+            itemCount: options.length,
+            itemBuilder: (context, index) {
+              final minutes = options[index];
+              return ListTile(
+                title: Text(s.prayerOffsetSubtitle(minutes)),
+                selected: counter.prayerOffsetMinutes == minutes,
+                onTap: () async {
+                  await counters.setPrayerOffset(counter.id, minutes);
+                  if (context.mounted) {
+                    Navigator.pop(context);
+                  }
+                },
+              );
+            },
+          ),
+        ),
+      ),
+    );
+  }
+
+  String _prayerLocationSubtitle(BuildContext context) {
+    final settings = context.watch<SettingsProvider>().settings;
+    if (settings.latitude == null || settings.longitude == null) {
+      return S.of(context).prayerLocationNotSet;
+    }
+    return '${settings.latitude!.toStringAsFixed(3)}, '
+        '${settings.longitude!.toStringAsFixed(3)}';
+  }
+
+  Future<void> _showPrayerLocationDialog(BuildContext context) async {
+    final s = S.of(context);
+    final settings = context.read<SettingsProvider>();
+    final counters = context.read<CountersProvider>();
+    final notifications = context.read<NotificationService>();
+
+    final latController =
+        TextEditingController(text: settings.settings.latitude?.toString() ?? '');
+    final lngController = TextEditingController(
+        text: settings.settings.longitude?.toString() ?? '');
+    var method = settings.settings.calculationMethod;
+
+    final methods = [
+      ('muslim_world_league', 'Muslim World League'),
+      ('umm_al_qura', 'Umm al-Qura'),
+      ('egyptian', 'Egyptian'),
+      ('karachi', 'Karachi'),
+      ('dubai', 'Dubai'),
+      ('qatar', 'Qatar'),
+      ('kuwait', 'Kuwait'),
+      ('moonsighting_committee', 'Moonsighting Committee'),
+      ('north_america', 'ISNA'),
+    ];
+
+    final saved = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (dialogContext, setDialogState) => AlertDialog(
+          title: Text(s.prayerLocationSection),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: latController,
+                keyboardType:
+                    const TextInputType.numberWithOptions(decimal: true),
+                decoration: InputDecoration(labelText: s.latitudeLabel),
+              ),
+              TextField(
+                controller: lngController,
+                keyboardType:
+                    const TextInputType.numberWithOptions(decimal: true),
+                decoration: InputDecoration(labelText: s.longitudeLabel),
+              ),
+              const SizedBox(height: 8),
+              DropdownButtonFormField<String>(
+                initialValue: method,
+                decoration: InputDecoration(labelText: s.methodLabel),
+                items: [
+                  for (final m in methods)
+                    DropdownMenuItem(value: m.$1, child: Text(m.$2)),
+                ],
+                onChanged: (value) =>
+                    setDialogState(() => method = value ?? method),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, false),
+              child: Text(s.cancel),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, true),
+              child: Text(s.save),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    if (saved != true) return;
+    final lat = double.tryParse(latController.text.trim());
+    final lng = double.tryParse(lngController.text.trim());
+    if (lat == null || lng == null) return;
+
+    await settings.setPrayerLocation(lat, lng);
+    await settings.setCalculationMethod(method);
+    // Refresh the rolling prayer window with the new location.
+    try {
+      await notifications.rescheduleAll(counters.counters,
+          settings: settings.settings);
+    } catch (_) {}
+  }
+
   void _showExportSheet(BuildContext context) {
+    final s = S.of(context);
     showModalBottomSheet<void>(
       context: context,
       builder: (sheetContext) => SafeArea(
@@ -183,7 +364,7 @@ class SettingsScreen extends StatelessWidget {
           children: [
             ListTile(
               leading: const Icon(Icons.description),
-              title: const Text(AppStrings.exportJsonOption),
+              title: Text(s.exportJsonOption),
               onTap: () {
                 Navigator.pop(sheetContext);
                 _exportData(context, isCsv: false);
@@ -191,7 +372,7 @@ class SettingsScreen extends StatelessWidget {
             ),
             ListTile(
               leading: const Icon(Icons.table_chart),
-              title: const Text(AppStrings.exportCsvOption),
+              title: Text(s.exportCsvOption),
               onTap: () {
                 Navigator.pop(sheetContext);
                 _exportData(context, isCsv: true);
@@ -206,48 +387,54 @@ class SettingsScreen extends StatelessWidget {
   Future<void> _exportData(BuildContext context, {required bool isCsv}) async {
     final backup = context.read<BackupService>();
     final messenger = ScaffoldMessenger.of(context);
+    final s = S.of(context);
     try {
       final content =
           isCsv ? await backup.buildCsv() : await backup.buildJsonBackup();
       final dir = await getTemporaryDirectory();
       final name = 'zikr-backup-${dailyKey(DateTime.now())}.${isCsv ? 'csv' : 'json'}';
       final file = File('${dir.path}/$name')..writeAsStringSync(content);
-      await Share.shareXFiles(
-        [XFile(file.path, mimeType: isCsv ? 'text/csv' : 'application/json')],
+      await SharePlus.instance.share(
+        ShareParams(
+          files: [
+            XFile(file.path, mimeType: isCsv ? 'text/csv' : 'application/json'),
+          ],
+        ),
       );
       unawaited(file.delete());
     } catch (_) {
       messenger.showSnackBar(
-        const SnackBar(content: Text(AppStrings.errorExportFailed)),
+        SnackBar(content: Text(s.errorExportFailed)),
       );
     }
   }
 
   Future<void> _showRestoreFlow(BuildContext context) async {
+    final s = S.of(context);
     final backup = context.read<BackupService>();
     final counters = context.read<CountersProvider>();
     final settings = context.read<SettingsProvider>();
     final notifications = context.read<NotificationService>();
     final messenger = ScaffoldMessenger.of(context);
 
-    final picked = await FilePicker.platform.pickFiles(
+    final picked = await FilePicker.pickFiles(
       type: FileType.custom,
       allowedExtensions: ['json'],
-      withData: true,
     );
-    if (picked == null || picked.files.isEmpty) return;
+    if (picked.isEmpty) return;
 
     final BackupData data;
     try {
-      data = backup.parseJsonBackup(utf8.decode(picked.files.single.bytes!));
+      final bytes = await picked.single.readAsBytes();
+      data = backup.parseJsonBackup(utf8.decode(bytes));
     } on BackupException catch (e) {
       messenger.showSnackBar(
-        SnackBar(content: Text(AppStrings.backupErrorMessage(e.code))),
+        SnackBar(content: Text(s.backupError(e.code.name))),
       );
       return;
     } catch (_) {
       messenger.showSnackBar(
-        const SnackBar(content: Text(AppStrings.errorReadFileFailed)),
+        SnackBar(content: Text(s.errorReadFileFailed)),
       );
       return;
     }
@@ -256,18 +443,18 @@ class SettingsScreen extends StatelessWidget {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text(AppStrings.restoreBackup),
-        content: const Text(AppStrings.restoreConfirmBody),
+        title: Text(s.restoreBackup),
+        content: Text(s.restoreConfirmBody),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext, false),
-            child: const Text('إلغاء'),
+            child: Text(s.cancel),
           ),
           TextButton(
             onPressed: () => Navigator.pop(dialogContext, true),
-            child: const Text(
-              'استعادة',
-              style: TextStyle(color: Colors.red),
+            child: Text(
+              s.restoreAction,
+              style: const TextStyle(color: Colors.red),
             ),
           ),
         ],
@@ -280,15 +467,16 @@ class SettingsScreen extends StatelessWidget {
       await counters.load();
       await settings.load();
       messenger.showSnackBar(
-        const SnackBar(content: Text(AppStrings.restoreSuccess)),
+        SnackBar(content: Text(s.restoreSuccess)),
       );
     } catch (_) {
       messenger.showSnackBar(
-        const SnackBar(content: Text(AppStrings.errorRestoreFailed)),
+        SnackBar(content: Text(s.errorRestoreFailed)),
       );
     }
     try {
-      await notifications.rescheduleAll(counters.counters);
+      await notifications.rescheduleAll(counters.counters,
+          settings: settings.settings);
     } catch (_) {}
   }
 
@@ -312,40 +500,41 @@ class SettingsScreen extends StatelessWidget {
       decoration: BoxDecoration(
         shape: BoxShape.circle,
         border: Border.all(color: gold, width: 1.2),
-        color: Theme.of(context).colorScheme.primary.withOpacity(0.06),
+        color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.06),
       ),
       child: Icon(icon,
           color: iconColor ?? Theme.of(context).colorScheme.primary, size: 20),
     );
   }
 
-  String _getIntervalText(int minutes) {
+  String _getIntervalText(S s, int minutes) {
     if (minutes < 60) {
-      return 'كل $minutes دقيقة';
+      return s.everyMinutes(minutes);
     } else if (minutes == 60) {
-      return 'كل ساعة';
+      return s.everyHour;
     } else {
       final hours = minutes ~/ 60;
-      return 'كل $hours ساعة';
+      return s.everyHours(hours);
     }
   }
 
   void _showRenameDialog(BuildContext context, CountersProvider counters) {
+    final s = S.of(context);
     final counter = counters.activeCounter;
     final controller = TextEditingController(text: counter.name);
     showDialog(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('تعديل الاسم'),
+        title: Text(s.renameTitle),
         content: TextField(
           controller: controller,
           autofocus: true,
-          decoration: const InputDecoration(labelText: 'اسم الذكر'),
+          decoration: InputDecoration(labelText: s.dhikrNameLabel),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext),
-            child: const Text('إلغاء'),
+            child: Text(s.cancel),
           ),
           TextButton(
             onPressed: () async {
@@ -357,7 +546,7 @@ class SettingsScreen extends StatelessWidget {
                 Navigator.pop(dialogContext);
               }
             },
-            child: const Text('حفظ'),
+            child: Text(s.save),
           ),
         ],
       ),
@@ -365,16 +554,17 @@ class SettingsScreen extends StatelessWidget {
   }
 
   void _showDeleteDialog(BuildContext context, CountersProvider counters) {
+    final s = S.of(context);
     final counter = counters.activeCounter;
     showDialog(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('حذف العداد'),
-        content: Text('هل أنت متأكد من حذف "${counter.name}"؟'),
+        title: Text(s.deleteCounterLabel),
+        content: Text(s.deleteConfirmBody(counter.name)),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext),
-            child: const Text('إلغاء'),
+            child: Text(s.cancel),
           ),
           TextButton(
             onPressed: () async {
@@ -383,7 +573,8 @@ class SettingsScreen extends StatelessWidget {
                 Navigator.pop(dialogContext);
               }
             },
-            child: const Text('حذف', style: TextStyle(color: Colors.red)),
+            child:
+                Text(s.deleteAction, style: const TextStyle(color: Colors.red)),
           ),
         ],
       ),
@@ -406,52 +597,54 @@ class SettingsScreen extends StatelessWidget {
     BuildContext context,
     CountersProvider counters,
   ) {
+    final s = S.of(context);
     final counter = counters.activeCounter;
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('نوع التذكير'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            RadioListTile<ReminderType>(
-              title: const Text('تذكير متكرر'),
-              subtitle: const Text('كل مدة محددة'),
-              value: ReminderType.interval,
-              groupValue: counter.reminderType,
-              onChanged: (value) async {
-                await counters.setReminderType(counter.id, value!);
-                if (context.mounted) {
-                  Navigator.pop(context);
-                }
-              },
-            ),
-            RadioListTile<ReminderType>(
-              title: const Text('تذكير يومي'),
-              subtitle: const Text('في أوقات محددة يومياً'),
-              value: ReminderType.daily,
-              groupValue: counter.reminderType,
-              onChanged: (value) async {
-                await counters.setReminderType(counter.id, value!);
-                if (context.mounted) {
-                  Navigator.pop(context);
-                }
-              },
-            ),
-          ],
+        title: Text(s.reminderTypeLabel),
+        content: RadioGroup<ReminderType>(
+          groupValue: counter.reminderType,
+          onChanged: (value) async {
+            await counters.setReminderType(counter.id, value!);
+            if (context.mounted) {
+              Navigator.pop(context);
+            }
+          },
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              RadioListTile<ReminderType>(
+                title: Text(s.repeatTypeOption),
+                subtitle: Text(s.repeatTypeSub),
+                value: ReminderType.interval,
+              ),
+              RadioListTile<ReminderType>(
+                title: Text(s.dailyTypeOption),
+                subtitle: Text(s.dailyTypeSub),
+                value: ReminderType.daily,
+              ),
+              RadioListTile<ReminderType>(
+                title: Text(s.prayerTypeOption),
+                subtitle: Text(s.prayerTypeSub),
+                value: ReminderType.prayer,
+              ),
+            ],
+          ),
         ),
       ),
     );
   }
 
   void _showIntervalDialog(BuildContext context, CountersProvider counters) {
+    final s = S.of(context);
     final counter = counters.activeCounter;
     final intervals = [15, 30, 60, 120, 180, 360, 720];
 
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('فاصل التذكير'),
+        title: Text(s.intervalLabel),
         content: SizedBox(
           width: double.maxFinite,
           child: ListView.builder(
@@ -460,7 +653,7 @@ class SettingsScreen extends StatelessWidget {
             itemBuilder: (context, index) {
               final minutes = intervals[index];
               return ListTile(
-                title: Text(_getIntervalText(minutes)),
+                title: Text(_getIntervalText(s, minutes)),
                 selected: counter.reminderIntervalMinutes == minutes,
                 onTap: () async {
                   await counters.setReminderInterval(counter.id, minutes);
@@ -480,6 +673,7 @@ class SettingsScreen extends StatelessWidget {
     BuildContext context,
     CountersProvider counters,
   ) {
+    final s = S.of(context);
     final counter = counters.activeCounter;
     final times = List<int>.from(counter.dailyReminderTimes);
 
@@ -488,7 +682,7 @@ class SettingsScreen extends StatelessWidget {
       builder: (context) => StatefulBuilder(
         builder: (context, setState) {
           return AlertDialog(
-            title: const Text('أوقات التذكير اليومية'),
+            title: Text(s.dailyTimesLabel),
             content: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
@@ -530,14 +724,14 @@ class SettingsScreen extends StatelessWidget {
                     }
                   },
                   icon: const Icon(Icons.add),
-                  label: const Text('إضافة وقت'),
+                  label: Text(s.addTime),
                 ),
               ],
             ),
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(context),
-                child: const Text('إلغاء'),
+                child: Text(s.cancel),
               ),
               TextButton(
                 onPressed: () async {
@@ -546,7 +740,7 @@ class SettingsScreen extends StatelessWidget {
                     Navigator.pop(context);
                   }
                 },
-                child: const Text('حفظ'),
+                child: Text(s.save),
               ),
             ],
           );
@@ -592,16 +786,17 @@ class _DailyTargetDialogState extends State<_DailyTargetDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final s = S.of(context);
     return AlertDialog(
-      title: const Text('الهدف اليومي'),
+      title: Text(s.dailyTargetLabel),
       content: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
           TextField(
             controller: _controller,
             keyboardType: TextInputType.number,
-            decoration: const InputDecoration(
-              labelText: 'عدد المرات',
+            decoration: InputDecoration(
+              labelText: s.timesCountLabel,
             ),
           ),
           const SizedBox(height: 16),
@@ -621,13 +816,15 @@ class _DailyTargetDialogState extends State<_DailyTargetDialog> {
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(context),
-          child: const Text('إلغاء'),
+          child: Text(s.cancel),
         ),
         TextButton(
           onPressed: _submit,
-          child: const Text('حفظ'),
+          child: Text(s.save),
         ),
       ],
     );
   }
 }
+
+

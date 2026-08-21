@@ -1,8 +1,10 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import '../models/adhkar_counter.dart';
 import '../services/notification_service.dart';
 import '../services/storage_service.dart';
-import '../utils/stats.dart';
+import '../utils/rollover.dart';
 
 class CountersProvider with ChangeNotifier {
   final StorageService _storage;
@@ -12,6 +14,12 @@ class CountersProvider with ChangeNotifier {
   String _activeId = '';
   int? _lastCount;
 
+  // Debounced persistence: the UI notifies first, the write lands shortly
+  // after (or on app pause) so rapid taps never wait on disk.
+  static const Duration _persistDelay = Duration(milliseconds: 300);
+  Timer? _persistTimer;
+  bool _persistPending = false;
+
   static final AdhkarCounter _empty = AdhkarCounter(id: '', name: '');
 
   CountersProvider(this._storage, this._notificationService);
@@ -19,8 +27,9 @@ class CountersProvider with ChangeNotifier {
   List<AdhkarCounter> get counters => List.unmodifiable(_counters);
 
   AdhkarCounter get activeCounter {
-    final matches = _counters.where((c) => c.id == _activeId);
-    if (matches.isNotEmpty) return matches.first;
+    for (final c in _counters) {
+      if (c.id == _activeId) return c;
+    }
     if (_counters.isNotEmpty) return _counters.first;
     return _empty;
   }
@@ -51,7 +60,7 @@ class CountersProvider with ChangeNotifier {
 
   Future<void> increment() async {
     final active = activeCounter;
-    final rolled = _rolloverIfNeeded(active);
+    final rolled = rollOverCounter(active, DateTime.now());
     _lastCount = rolled.currentCount;
     _replace(
       active.id,
@@ -61,8 +70,8 @@ class CountersProvider with ChangeNotifier {
         lastUsedAt: DateTime.now(),
       ),
     );
-    await _persist();
     notifyListeners();
+    _schedulePersist();
   }
 
   Future<void> undo() async {
@@ -77,8 +86,8 @@ class CountersProvider with ChangeNotifier {
       ),
     );
     _lastCount = null;
-    await _persist();
     notifyListeners();
+    _schedulePersist();
   }
 
   Future<void> reset({bool includeTotal = false}) async {
@@ -93,8 +102,8 @@ class CountersProvider with ChangeNotifier {
       ),
     );
     _lastCount = null;
-    await _persist();
     notifyListeners();
+    _schedulePersist();
   }
 
   Future<void> addCounter(String name) async {
@@ -105,9 +114,22 @@ class CountersProvider with ChangeNotifier {
     _counters = [..._counters, counter];
     _activeId = counter.id;
     _lastCount = null;
-    await _persist();
-    await _storage.saveActiveCounterId(counter.id);
     notifyListeners();
+    await _flushPersist();
+    await _storage.saveActiveCounterId(counter.id);
+  }
+
+  /// Activates an existing counter named [name], creating it first when no
+  /// counter has that name yet. Returns its id.
+  Future<String> ensureCounterNamed(String name) async {
+    final existing = _counters.indexWhere((c) => c.name == name);
+    if (existing >= 0) {
+      final id = _counters[existing].id;
+      await setActive(id);
+      return id;
+    }
+    await addCounter(name);
+    return activeCounter.id;
   }
 
   Future<void> renameCounter(String id, String name) =>
@@ -123,9 +145,9 @@ class CountersProvider with ChangeNotifier {
           _counters.isEmpty ? null : _activeId);
     }
     _lastCount = null;
-    await _persist();
-    await _reschedule();
     notifyListeners();
+    await _flushPersist();
+    await _reschedule();
   }
 
   Future<void> setDailyTarget(String id, int value) =>
@@ -151,6 +173,11 @@ class CountersProvider with ChangeNotifier {
     await _reschedule();
   }
 
+  Future<void> setPrayerOffset(String id, int minutes) async {
+    await _updateCounter(id, (c) => c.copyWith(prayerOffsetMinutes: minutes));
+    await _reschedule();
+  }
+
   Future<void> setDailyReminderTimes(String id, List<int> times) async {
     await _updateCounter(id, (c) => c.copyWith(dailyReminderTimes: times));
     await _reschedule();
@@ -162,6 +189,9 @@ class CountersProvider with ChangeNotifier {
 
   Future<void> rolloverIfNewDay() => _rolloverAll();
 
+  /// Writes any pending counter changes immediately (e.g. app paused).
+  Future<void> flushPendingSave() => _flushPersist();
+
   Future<void> _updateCounter(
     String id,
     AdhkarCounter Function(AdhkarCounter) update,
@@ -169,8 +199,32 @@ class CountersProvider with ChangeNotifier {
     final index = _counters.indexWhere((c) => c.id == id);
     if (index < 0) return;
     _counters[index] = update(_counters[index]);
-    await _persist();
     notifyListeners();
+    await _flushPersist();
+  }
+
+  void _schedulePersist() {
+    _persistPending = true;
+    _persistTimer?.cancel();
+    _persistTimer = Timer(_persistDelay, _flushPersist);
+  }
+
+  Future<void> _flushPersist() {
+    _persistTimer?.cancel();
+    _persistTimer = null;
+    if (!_persistPending) return Future.value();
+    _persistPending = false;
+    return _storage.saveCounters(_counters);
+  }
+
+  @override
+  void dispose() {
+    _persistTimer?.cancel();
+    if (_persistPending) {
+      _persistPending = false;
+      unawaited(_storage.saveCounters(_counters));
+    }
+    super.dispose();
   }
 
   void _replace(String id, AdhkarCounter counter) {
@@ -180,30 +234,11 @@ class CountersProvider with ChangeNotifier {
     }
   }
 
-  AdhkarCounter _rolloverIfNeeded(AdhkarCounter counter) {
-    final now = DateTime.now();
-    final last = counter.lastUsedAt;
-    if (last.year == now.year &&
-        last.month == now.month &&
-        last.day == now.day) {
-      return counter;
-    }
-    final history = Map<String, int>.from(counter.history);
-    if (counter.currentCount > 0) {
-      history[dailyKey(last)] = counter.currentCount;
-    }
-    return counter.copyWith(
-      currentCount: 0,
-      history: history,
-      lastUsedAt: now,
-      lastResetAt: now,
-    );
-  }
-
   Future<void> _rolloverAll() async {
     var changed = false;
+    final now = DateTime.now();
     for (var i = 0; i < _counters.length; i++) {
-      final rolled = _rolloverIfNeeded(_counters[i]);
+      final rolled = rollOverCounter(_counters[i], now);
       if (!identical(rolled, _counters[i])) {
         _counters[i] = rolled;
         changed = true;
@@ -211,13 +246,15 @@ class CountersProvider with ChangeNotifier {
     }
     _lastCount = null;
     if (changed) {
-      await _persist();
+      _schedulePersist();
     }
   }
 
   Future<void> _reschedule() async {
-    await _notificationService.rescheduleAll(_counters);
+    // Prayer-type counters need the configured location from settings.
+    final settings = await _storage.getSettings();
+    await _notificationService.rescheduleAll(_counters, settings: settings);
   }
-
-  Future<void> _persist() => _storage.saveCounters(_counters);
 }
+
+

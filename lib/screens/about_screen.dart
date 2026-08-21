@@ -54,7 +54,7 @@ class AboutScreen extends StatelessWidget {
                         color: Theme.of(context)
                             .colorScheme
                             .onSurface
-                            .withOpacity(0.6),
+                            .withValues(alpha: 0.6),
                       )),
               const SizedBox(height: 24),
               const GoldHairlineDivider(),
@@ -83,7 +83,7 @@ class AboutScreen extends StatelessWidget {
                         color: Theme.of(context)
                             .colorScheme
                             .onSurface
-                            .withOpacity(0.4),
+                            .withValues(alpha: 0.4),
                       )),
             ],
           ),
@@ -106,7 +106,7 @@ class AboutScreen extends StatelessWidget {
             decoration: BoxDecoration(
               shape: BoxShape.circle,
               border: Border.all(color: gold, width: 1.2),
-              color: Theme.of(context).colorScheme.primary.withOpacity(0.06),
+              color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.06),
             ),
             child: Icon(icon, color: Theme.of(context).colorScheme.primary),
           ),
@@ -123,7 +123,7 @@ class AboutScreen extends StatelessWidget {
                           color: Theme.of(context)
                               .colorScheme
                               .onSurface
-                              .withOpacity(0.6),
+                              .withValues(alpha: 0.6),
                         )),
               ],
             ),
@@ -133,3 +133,4 @@ class AboutScreen extends StatelessWidget {
     );
   }
 }
+

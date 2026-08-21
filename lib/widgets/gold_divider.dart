@@ -58,3 +58,4 @@ class _StarNodePainter extends CustomPainter {
   @override
   bool shouldRepaint(covariant _StarNodePainter old) => old.color != color;
 }
+

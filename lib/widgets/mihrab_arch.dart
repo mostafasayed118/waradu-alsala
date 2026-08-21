@@ -84,3 +84,4 @@ class _MihrabOutlinePainter extends CustomPainter {
       old.strokeWidth != strokeWidth ||
       old.archHeight != archHeight;
 }
+

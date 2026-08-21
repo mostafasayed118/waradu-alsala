@@ -1,4 +1,29 @@
+import 'dart:math';
+
 import 'package:flutter/material.dart';
+
+/// Builds an 8-pointed star (Khatam) path centered at [center] with the
+/// given outer radius. Shared by the tessellation painter and effects.
+Path khatamStarPath(Offset center, double radius) {
+  final path = Path();
+  const points = 8;
+  const innerRatio = 0.45;
+  for (var i = 0; i < points * 2; i++) {
+    final angle = -pi / 2 + i * pi / points;
+    final r = i.isEven ? radius : radius * innerRatio;
+    final vertex = Offset(
+      center.dx + r * cos(angle),
+      center.dy + r * sin(angle),
+    );
+    if (i == 0) {
+      path.moveTo(vertex.dx, vertex.dy);
+    } else {
+      path.lineTo(vertex.dx, vertex.dy);
+    }
+  }
+  path.close();
+  return path;
+}
 
 /// A faint 8-pointed-star (Khatam) tessellation painted with CustomPaint.
 ///
@@ -18,7 +43,7 @@ class IslamicPattern extends StatelessWidget {
     final starColor = color ?? Theme.of(context).colorScheme.secondary;
     return CustomPaint(
       painter: _KhatamTessellationPainter(
-        color: starColor.withOpacity(opacity.clamp(0.0, 1.0)),
+        color: starColor.withValues(alpha: opacity.clamp(0.0, 1.0)),
       ),
       child: const SizedBox.expand(),
     );
@@ -67,3 +92,4 @@ class _KhatamTessellationPainter extends CustomPainter {
   bool shouldRepaint(covariant _KhatamTessellationPainter old) =>
       old.color != color;
 }
+

@@ -1,4 +1,4 @@
-enum ReminderType { interval, daily }
+enum ReminderType { interval, daily, prayer }
 
 class AdhkarCounter {
   final String id;
@@ -14,6 +14,9 @@ class AdhkarCounter {
   final int reminderIntervalMinutes;
   final List<int> dailyReminderTimes;
 
+  /// Minutes after each prayer, for [ReminderType.prayer].
+  final int prayerOffsetMinutes;
+
   AdhkarCounter({
     required this.id,
     required this.name,
@@ -27,6 +30,7 @@ class AdhkarCounter {
     this.reminderType = ReminderType.interval,
     this.reminderIntervalMinutes = 60,
     this.dailyReminderTimes = const [],
+    this.prayerOffsetMinutes = 10,
   }) : lastUsedAt = lastUsedAt ?? DateTime.now();
 
   AdhkarCounter copyWith({
@@ -42,6 +46,7 @@ class AdhkarCounter {
     ReminderType? reminderType,
     int? reminderIntervalMinutes,
     List<int>? dailyReminderTimes,
+    int? prayerOffsetMinutes,
   }) {
     return AdhkarCounter(
       id: id ?? this.id,
@@ -57,6 +62,7 @@ class AdhkarCounter {
       reminderIntervalMinutes:
           reminderIntervalMinutes ?? this.reminderIntervalMinutes,
       dailyReminderTimes: dailyReminderTimes ?? this.dailyReminderTimes,
+      prayerOffsetMinutes: prayerOffsetMinutes ?? this.prayerOffsetMinutes,
     );
   }
 
@@ -74,6 +80,7 @@ class AdhkarCounter {
       'reminderType': reminderType.index,
       'reminderIntervalMinutes': reminderIntervalMinutes,
       'dailyReminderTimes': dailyReminderTimes,
+      'prayerOffsetMinutes': prayerOffsetMinutes,
     };
   }
 
@@ -96,6 +103,7 @@ class AdhkarCounter {
       reminderIntervalMinutes: json['reminderIntervalMinutes'] ?? 60,
       dailyReminderTimes:
           List<int>.from(json['dailyReminderTimes'] ?? const []),
+      prayerOffsetMinutes: json['prayerOffsetMinutes'] ?? 10,
     );
   }
 
@@ -106,3 +114,4 @@ class AdhkarCounter {
     );
   }
 }
+

@@ -1,6 +1,7 @@
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:salawat_app/models/adhkar_counter.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:salawat_app/services/notification_service.dart';
 
 const MethodChannel _channel =
@@ -8,6 +9,10 @@ const MethodChannel _channel =
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+
+  // v22 requires platform registration that native plugin loading does in
+  // a real app run; tests must do it explicitly.
+  AndroidFlutterLocalNotificationsPlugin.registerWith();
 
   test('each NotificationService instance initializes independently', () async {
     var initializeCalls = 0;
@@ -49,3 +54,4 @@ void main() {
     expect(calls, contains('cancelAll'));
   });
 }
+

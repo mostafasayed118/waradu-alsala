@@ -1,16 +1,35 @@
 import 'package:flutter/material.dart';
+import '../utils/app_localizations.dart';
 import '../utils/app_strings.dart';
 import '../utils/app_text_styles.dart';
 import 'gold_divider.dart';
 import 'islamic_pattern.dart';
 
+/// Lets descendant screens (e.g. the adhkar library) switch tabs without
+/// touching Navigator: `ShellTabController.of(context)?.notifier.value = 0;`
+class ShellTabController extends InheritedWidget {
+  const ShellTabController({
+    super.key,
+    required this.notifier,
+    required super.child,
+  });
+
+  final ValueNotifier<int> notifier;
+
+  static ShellTabController? of(BuildContext context) =>
+      context.dependOnInheritedWidgetOfExactType<ShellTabController>();
+
+  @override
+  bool updateShouldNotify(ShellTabController oldWidget) => false;
+}
+
 /// A persistent decorative app shell: custom mihrab-arch header band +
-/// 3-tab ornamental pill bottom-nav wrapping an IndexedStack so tabs
+/// 4-tab ornamental pill bottom-nav wrapping an IndexedStack so tabs
 /// preserve their state when switching.
 class DecorativeAppShell extends StatefulWidget {
   const DecorativeAppShell({super.key, required this.screens});
 
-  /// Exactly 3 widgets: Home, Stats, Settings (in that order).
+  /// Exactly 4 widgets: Home, Library, Stats, Settings (in that order).
   final List<Widget> screens;
 
   /// Caps the bottom-nav pill row so tabs stay grouped and centered on
@@ -23,27 +42,49 @@ class DecorativeAppShell extends StatefulWidget {
 
 class _DecorativeAppShellState extends State<DecorativeAppShell> {
   int _index = 0;
+  late final ValueNotifier<int> _tabNotifier = ValueNotifier<int>(0);
 
   static const _tabs = [
-    _TabSpec(label: 'الرئيسية', icon: Icons.mosque),
-    _TabSpec(label: 'الإحصائيات', icon: Icons.bar_chart),
-    _TabSpec(label: 'الإعدادات', icon: Icons.settings),
+    _TabSpec(labelKey: 'homeTab', icon: Icons.mosque),
+    _TabSpec(labelKey: 'libraryTab', icon: Icons.menu_book),
+    _TabSpec(labelKey: 'statsTab', icon: Icons.bar_chart),
+    _TabSpec(labelKey: 'settingsTab', icon: Icons.settings),
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    _tabNotifier.addListener(_onTabNotifierChanged);
+  }
+
+  void _onTabNotifierChanged() {
+    if (mounted) setState(() => _index = _tabNotifier.value);
+  }
+
+  @override
+  void dispose() {
+    _tabNotifier.removeListener(_onTabNotifierChanged);
+    _tabNotifier.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     final isHome = _index == 0;
     return Scaffold(
-      body: Column(
-        children: [
-          _buildHeader(context, isHome),
-          Expanded(
-            child: IndexedStack(
-              index: _index,
-              children: widget.screens,
+      body: ShellTabController(
+        notifier: _tabNotifier,
+        child: Column(
+          children: [
+            _buildHeader(context, isHome),
+            Expanded(
+              child: IndexedStack(
+                index: _index,
+                children: widget.screens,
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
       bottomNavigationBar: _buildBottomNav(context),
     );
@@ -68,7 +109,9 @@ class _DecorativeAppShellState extends State<DecorativeAppShell> {
                   child: IslamicPattern(opacity: 0.06),
                 ),
                 Text(
-                  isHome ? AppStrings.appName : _tabs[_index].label,
+                  isHome
+                      ? AppStrings.appName
+                      : S.of(context).t(_tabs[_index].labelKey),
                   style: AppTextStyles.display(context).copyWith(
                     color: Theme.of(context).colorScheme.secondary,
                   ),
@@ -106,12 +149,14 @@ class _DecorativeAppShellState extends State<DecorativeAppShell> {
               mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: [
                 for (var i = 0; i < _tabs.length; i++)
-                  _NavPill(
-                    label: _tabs[i].label,
-                    icon: _tabs[i].icon,
-                    selected: i == _index,
-                    gold: gold,
-                    onTap: () => setState(() => _index = i),
+                  Expanded(
+                    child: _NavPill(
+                      label: S.of(context).t(_tabs[i].labelKey),
+                      icon: _tabs[i].icon,
+                      selected: i == _index,
+                      gold: gold,
+                      onTap: () => _tabNotifier.value = i,
+                    ),
                   ),
               ],
             ),
@@ -123,8 +168,8 @@ class _DecorativeAppShellState extends State<DecorativeAppShell> {
 }
 
 class _TabSpec {
-  const _TabSpec({required this.label, required this.icon});
-  final String label;
+  const _TabSpec({required this.labelKey, required this.icon});
+  final String labelKey;
   final IconData icon;
 }
 
@@ -150,7 +195,7 @@ class _NavPill extends StatelessWidget {
       onTap: onTap,
       borderRadius: BorderRadius.circular(24),
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -166,6 +211,8 @@ class _NavPill extends StatelessWidget {
             const SizedBox(height: 2),
             Text(
               label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
               style: TextStyle(
                 fontFamily: 'ReemKufi',
                 fontSize: 12,
@@ -197,3 +244,6 @@ class _SmallStarPainter extends CustomPainter {
   @override
   bool shouldRepaint(covariant _SmallStarPainter old) => old.color != color;
 }
+
+
+

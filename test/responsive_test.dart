@@ -3,6 +3,8 @@ import 'dart:convert';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -110,6 +112,7 @@ void main() {
     final storage = StorageService();
     await storage.init();
     final notif = NotificationService();
+    AndroidFlutterLocalNotificationsPlugin.registerWith();
     await notif.init();
     tester.view.physicalSize = const Size(320, 640);
     tester.view.devicePixelRatio = 1.0;
@@ -125,7 +128,12 @@ void main() {
           Provider<NotificationService>.value(value: notif),
           Provider<BackupService>.value(value: BackupService(storage: storage)),
         ],
-        child: const MaterialApp(home: Scaffold(body: HomeScreen())),
+        child: MaterialApp(
+        locale: const Locale('ar', 'SA'),
+        supportedLocales: const [Locale('ar', 'SA'), Locale('en')],
+        localizationsDelegates: GlobalMaterialLocalizations.delegates,
+        home: const Scaffold(body: HomeScreen()),
+      ),
       ),
     );
     await tester.pumpAndSettle();
@@ -151,6 +159,7 @@ void main() {
     final storage = StorageService();
     await storage.init();
     final notif = NotificationService();
+    AndroidFlutterLocalNotificationsPlugin.registerWith();
     await notif.init();
 
     await tester.pumpWidget(
@@ -163,7 +172,12 @@ void main() {
           Provider<NotificationService>.value(value: notif),
           Provider<BackupService>.value(value: BackupService(storage: storage)),
         ],
-        child: const MaterialApp(home: Scaffold(body: SettingsScreen())),
+        child: MaterialApp(
+        locale: const Locale('ar', 'SA'),
+        supportedLocales: const [Locale('ar', 'SA'), Locale('en')],
+        localizationsDelegates: GlobalMaterialLocalizations.delegates,
+        home: const Scaffold(body: SettingsScreen()),
+      ),
       ),
     );
     await tester.pumpAndSettle();
@@ -217,10 +231,15 @@ void main() {
     addTearDown(tester.view.reset);
 
     await tester.pumpWidget(
-      const MaterialApp(
+      MaterialApp(
+        locale: const Locale('ar', 'SA'),
+        supportedLocales: const [Locale('ar', 'SA'), Locale('en')],
+        localizationsDelegates: GlobalMaterialLocalizations.delegates,
         home: DecorativeAppShell(
+          // Screens: Home, Library, Stats, Settings.
           screens: [
             Center(child: Text('home')),
+            Center(child: Text('library')),
             Center(child: Text('stats')),
             Center(child: Text('settings')),
           ],
@@ -271,6 +290,7 @@ Future<void> _pumpStats(
   final storage = StorageService();
   await storage.init();
   final notif = NotificationService();
+  AndroidFlutterLocalNotificationsPlugin.registerWith();
   await notif.init();
 
   tester.view.physicalSize = size;
@@ -287,8 +307,16 @@ Future<void> _pumpStats(
         Provider<NotificationService>.value(value: notif),
         Provider<BackupService>.value(value: BackupService(storage: storage)),
       ],
-      child: const MaterialApp(home: Scaffold(body: StatsScreen())),
+      child: MaterialApp(
+        locale: const Locale('ar', 'SA'),
+        supportedLocales: const [Locale('ar', 'SA'), Locale('en')],
+        localizationsDelegates: GlobalMaterialLocalizations.delegates,
+        home: const Scaffold(body: StatsScreen()),
+      ),
     ),
   );
   await tester.pumpAndSettle();
 }
+
+
+

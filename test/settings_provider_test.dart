@@ -39,4 +39,15 @@ void main() {
     expect(provider.settings.isDarkMode, isTrue);
     expect(storage.stored.isDarkMode, isTrue);
   });
+
+  test('toggleSound updates and persists the setting', () async {
+    final storage = _FakeStorageService(AppSettings(soundEnabled: false));
+    final provider = SettingsProvider(storage);
+    await provider.load();
+
+    await provider.toggleSound(true);
+
+    expect(provider.settings.soundEnabled, isTrue);
+    expect(storage.stored.soundEnabled, isTrue);
+  });
 }

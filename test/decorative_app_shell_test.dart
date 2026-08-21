@@ -1,37 +1,35 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:salawat_app/widgets/decorative_app_shell.dart';
 
 void main() {
   testWidgets('shell switches tabs and preserves state', (tester) async {
-    int homeBuilds = 0;
-    int statsBuilds = 0;
-
     await tester.pumpWidget(
       MaterialApp(
+        locale: const Locale('ar', 'SA'),
+        supportedLocales: const [Locale('ar', 'SA'), Locale('en')],
+        localizationsDelegates: GlobalMaterialLocalizations.delegates,
         home: DecorativeAppShell(
-          screens: [
-            StatefulBuilder(
-              builder: (context, _) {
-                homeBuilds++;
-                return const _StateMarker(label: 'home-content');
-              },
-            ),
-            StatefulBuilder(
-              builder: (context, _) {
-                statsBuilds++;
-                return const _StateMarker(label: 'stats-content');
-              },
-            ),
-            const _StateMarker(label: 'settings-content'),
+          // Screens: Home, Library, Stats, Settings.
+          screens: const [
+            _StateMarker(label: 'home-content'),
+            _StateMarker(label: 'library-content'),
+            _StateMarker(label: 'stats-content'),
+            _StateMarker(label: 'settings-content'),
           ],
         ),
       ),
     );
 
-    // Home is shown first; stats/settings built but kept offstage by stack.
+    // Home is shown first; other tabs built but kept offstage by stack.
     expect(find.text('الرئيسية'), findsWidgets);
     expect(find.text('home-content'), findsOneWidget);
+
+    // Switch to Library tab.
+    await tester.tap(find.text('الأذكار'));
+    await tester.pumpAndSettle();
+    expect(find.text('library-content'), findsOneWidget);
 
     // Switch to Stats tab by its label.
     await tester.tap(find.text('الإحصائيات'));

@@ -89,3 +89,4 @@ bool _isNextDay(DateTime a, DateTime b) {
   final next = DateTime(a.year, a.month, a.day + 1);
   return next.year == b.year && next.month == b.month && next.day == b.day;
 }
+

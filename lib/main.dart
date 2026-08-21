@@ -1,12 +1,17 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:home_widget/home_widget.dart';
 import 'package:provider/provider.dart';
 import 'providers/counters_provider.dart';
 import 'providers/settings_provider.dart';
 import 'services/storage_service.dart';
 import 'services/notification_service.dart';
 import 'services/backup_service.dart';
+import 'services/widget_sync_service.dart';
 import 'screens/home_screen.dart';
+import 'screens/library_screen.dart';
 import 'screens/settings_screen.dart';
 import 'screens/stats_screen.dart';
 import 'utils/app_theme.dart';
@@ -21,7 +26,12 @@ void main() async {
   await storageService.init();
 
   final notificationService = NotificationService();
-  await notificationService.init();
+  // Timezone DB load is slow; don't block the first frame on it. The service
+  // gates its own methods until init completes.
+  unawaited(notificationService.init());
+
+  // Widget tap-to-count runs in a background isolate.
+  unawaited(HomeWidget.registerInteractivityCallback(widgetBackgroundCallback));
 
   runApp(
     MultiProvider(
@@ -51,23 +61,51 @@ class MyApp extends StatefulWidget {
 }
 
 class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
+  final WidgetSyncService _widgetSync = WidgetSyncService();
+  VoidCallback? _countersListener;
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final counters = context.read<CountersProvider>();
+      _countersListener = () => _widgetSync.sync(counters.activeCounter);
+      counters.addListener(_countersListener!);
+      _widgetSync.sync(counters.activeCounter);
+    });
   }
 
   @override
   void dispose() {
+    final listener = _countersListener;
+    if (listener != null) {
+      // Provider may already be disposed during teardown; ignore errors.
+      try {
+        context.read<CountersProvider>().removeListener(listener);
+      } catch (_) {}
+    }
+    _widgetSync.dispose();
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
+    final counters = context.read<CountersProvider>();
     if (state == AppLifecycleState.resumed) {
-      final counters = context.read<CountersProvider>();
       counters.rolloverIfNewDay();
+      // Refresh the rolling prayer-reminder window (solar times drift daily).
+      final settings = context.read<SettingsProvider>();
+      unawaited(context
+          .read<NotificationService>()
+          .rescheduleAll(counters.counters, settings: settings.settings));
+    } else if (state == AppLifecycleState.paused ||
+        state == AppLifecycleState.detached) {
+      // Persist debounced counter changes before backgrounding.
+      unawaited(counters.flushPendingSave());
+      unawaited(_widgetSync.flush());
     }
   }
 
@@ -75,14 +113,21 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
   Widget build(BuildContext context) {
     return Consumer<SettingsProvider>(
       builder: (context, settings, child) {
+        final lang = settings.settings.languageCode;
+        final locale = switch (lang) {
+          'ar' => const Locale('ar', 'SA'),
+          'en' => const Locale('en'),
+          _ => null, // follow the platform
+        };
         return MaterialApp(
           title: AppStrings.appName,
           debugShowCheckedModeBanner: false,
 
           // RTL support
-          locale: const Locale('ar', 'SA'),
+          locale: locale,
           supportedLocales: const [
             Locale('ar', 'SA'),
+            Locale('en'),
           ],
           localizationsDelegates: const [
             GlobalMaterialLocalizations.delegate,
@@ -95,10 +140,11 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
           darkTheme: AppTheme.darkTheme(),
           themeMode: settings.isDarkMode ? ThemeMode.dark : ThemeMode.light,
 
-          // Decorative shell with 3-tab navigation
+          // Decorative shell with 4-tab navigation
           home: const DecorativeAppShell(
             screens: [
               HomeScreen(),
+              LibraryScreen(),
               StatsScreen(),
               SettingsScreen(),
             ],
@@ -108,3 +154,4 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
     );
   }
 }
+

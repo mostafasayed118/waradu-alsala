@@ -2,6 +2,7 @@ import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/counters_provider.dart';
+import '../utils/app_localizations.dart';
 import '../utils/app_text_styles.dart';
 import '../utils/breakpoints.dart';
 import '../utils/stats.dart';
@@ -61,9 +62,10 @@ class _StatsScreenState extends State<StatsScreen> {
 
         final width = MediaQuery.sizeOf(context).width;
         final rangeSelector = SegmentedButton<int>(
-          segments: const [
-            ButtonSegment(value: 7, label: Text('٧ أيام')),
-            ButtonSegment(value: 30, label: Text('٣٠ يومًا')),
+          segments: [
+            ButtonSegment(value: 7, label: Text(S.of(context).seg7)),
+            ButtonSegment(value: 30, label: Text(S.of(context).seg30)),
+            ButtonSegment(value: 90, label: Text(S.of(context).seg90)),
           ],
           selected: {_days},
           onSelectionChanged: (selection) {
@@ -115,6 +117,7 @@ class _StatsScreenState extends State<StatsScreen> {
     required int current,
     required int longest,
   }) {
+    final s = S.of(context);
     return SingleChildScrollView(
       child: Column(
         children: [
@@ -125,14 +128,13 @@ class _StatsScreenState extends State<StatsScreen> {
           Row(
             children: [
               Expanded(
-                child: _medallionTile(context,
-                    _days == 7 ? 'آخر ٧ أيام' : 'آخر ٣٠ يومًا', windowSum),
+                child: _medallionTile(context, s.windowLabel(_days), windowSum),
               ),
               Expanded(
-                child: _medallionTile(context, 'الإجمالي الكلي', totalCount),
+                child: _medallionTile(context, s.totalAllTime, totalCount),
               ),
               Expanded(
-                child: _medallionTile(context, 'أفضل يوم', bestDay),
+                child: _medallionTile(context, s.bestDay, bestDay),
               ),
             ],
           ),
@@ -141,10 +143,10 @@ class _StatsScreenState extends State<StatsScreen> {
             Row(
               children: [
                 Expanded(
-                  child: _medallionTile(context, 'السلسلة الحالية', current),
+                  child: _medallionTile(context, s.currentStreakLabel, current),
                 ),
                 Expanded(
-                  child: _medallionTile(context, 'أطول سلسلة', longest),
+                  child: _medallionTile(context, s.longestStreakLabel, longest),
                 ),
               ],
             ),
@@ -222,6 +224,7 @@ class _StatsScreenState extends State<StatsScreen> {
     required int current,
     required int longest,
   }) {
+    final s = S.of(context);
     const tileWidth = 160.0;
     return Wrap(
       spacing: 8,
@@ -229,25 +232,24 @@ class _StatsScreenState extends State<StatsScreen> {
       children: [
         SizedBox(
           width: tileWidth,
-          child: _medallionTile(context,
-              _days == 7 ? 'آخر ٧ أيام' : 'آخر ٣٠ يومًا', windowSum),
+          child: _medallionTile(context, s.windowLabel(_days), windowSum),
         ),
         SizedBox(
           width: tileWidth,
-          child: _medallionTile(context, 'الإجمالي الكلي', totalCount),
+          child: _medallionTile(context, s.totalAllTime, totalCount),
         ),
         SizedBox(
           width: tileWidth,
-          child: _medallionTile(context, 'أفضل يوم', bestDay),
+          child: _medallionTile(context, s.bestDay, bestDay),
         ),
         if (target > 0) ...[
           SizedBox(
             width: tileWidth,
-            child: _medallionTile(context, 'السلسلة الحالية', current),
+            child: _medallionTile(context, s.currentStreakLabel, current),
           ),
           SizedBox(
             width: tileWidth,
-            child: _medallionTile(context, 'أطول سلسلة', longest),
+            child: _medallionTile(context, s.longestStreakLabel, longest),
           ),
         ],
       ],
@@ -275,7 +277,7 @@ class _StatsScreenState extends State<StatsScreen> {
               show: true,
               drawVerticalLine: false,
               getDrawingHorizontalLine: (v) =>
-                  FlLine(color: gold.withOpacity(0.15), strokeWidth: 1),
+                  FlLine(color: gold.withValues(alpha: 0.15), strokeWidth: 1),
             ),
             borderData: FlBorderData(show: false),
             barGroups: [
@@ -286,7 +288,7 @@ class _StatsScreenState extends State<StatsScreen> {
                     BarChartRodData(
                       toY: counts[i].toDouble(),
                       color: Theme.of(context).colorScheme.primary,
-                      width: _days == 30 ? 5 : 14,
+                      width: _days >= 30 ? 5 : 14,
                       borderRadius: const BorderRadius.vertical(
                           top: Radius.circular(4)),
                     ),
@@ -307,9 +309,9 @@ class _StatsScreenState extends State<StatsScreen> {
       margin: const EdgeInsets.symmetric(horizontal: 4),
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.primary.withOpacity(0.06),
+        color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.06),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: gold.withOpacity(0.5)),
+        border: Border.all(color: gold.withValues(alpha: 0.5)),
       ),
       child: Column(
         children: [
@@ -324,3 +326,7 @@ class _StatsScreenState extends State<StatsScreen> {
     );
   }
 }
+
+
+
+

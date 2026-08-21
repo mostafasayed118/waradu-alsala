@@ -10,6 +10,14 @@ import 'package:share_plus/share_plus.dart';
 import 'package:salawat_app/domain/entities/adhkar_counter.dart';
 import 'package:salawat_app/features/counting/counters_provider.dart';
 import 'package:salawat_app/features/settings/settings_provider.dart';
+import 'package:salawat_app/features/settings/dialogs/daily_target_dialog.dart';
+import 'package:salawat_app/features/settings/dialogs/daily_times_dialog.dart';
+import 'package:salawat_app/features/settings/dialogs/delete_counter_dialog.dart';
+import 'package:salawat_app/features/settings/dialogs/prayer_location_dialog.dart';
+import 'package:salawat_app/features/settings/dialogs/prayer_offset_dialog.dart';
+import 'package:salawat_app/features/settings/dialogs/rename_dialog.dart';
+import 'package:salawat_app/features/settings/dialogs/reminder_interval_dialog.dart';
+import 'package:salawat_app/features/settings/dialogs/reminder_type_dialog.dart';
 import 'package:salawat_app/data/backup_service.dart';
 import 'package:salawat_app/data/notifications/notification_service.dart';
 import 'package:salawat_app/core/l10n/app_localizations.dart';
@@ -41,7 +49,7 @@ class SettingsScreen extends StatelessWidget {
               title: Text(s.nameLabel),
               subtitle: Text(counter.name),
               trailing: const Icon(Icons.chevron_right),
-              onTap: () => _showRenameDialog(context, counters),
+              onTap: () => showRenameDialog(context, counters),
             ),
             ListTile(
               leading: _medallionIcon(context, Icons.flag),
@@ -52,7 +60,7 @@ class SettingsScreen extends StatelessWidget {
                     : s.notSet,
               ),
               trailing: const Icon(Icons.chevron_right),
-              onTap: () => _showDailyTargetDialog(context, counters),
+              onTap: () => showDailyTargetDialog(context, counters),
             ),
             SwitchListTile(
               secondary: _medallionIcon(context, Icons.notifications_active),
@@ -80,15 +88,15 @@ class SettingsScreen extends StatelessWidget {
                       : s.dailyTypeDesc,
                 ),
                 trailing: const Icon(Icons.chevron_right),
-                onTap: () => _showReminderTypeDialog(context, counters),
+                onTap: () => showReminderTypeDialog(context, counters),
               ),
               if (counter.reminderType == ReminderType.interval)
                 ListTile(
                   title: Text(s.intervalLabel),
                   subtitle:
-                      Text(_getIntervalText(s, counter.reminderIntervalMinutes)),
+                      Text(reminderIntervalLabel(s, counter.reminderIntervalMinutes)),
                   trailing: const Icon(Icons.chevron_right),
-                  onTap: () => _showIntervalDialog(context, counters),
+                  onTap: () => showReminderIntervalDialog(context, counters),
                 ),
               if (counter.reminderType == ReminderType.prayer)
                 ListTile(
@@ -96,7 +104,7 @@ class SettingsScreen extends StatelessWidget {
                   subtitle: Text(s.prayerOffsetSubtitle(
                       counter.prayerOffsetMinutes)),
                   trailing: const Icon(Icons.chevron_right),
-                  onTap: () => _showPrayerOffsetDialog(context, counters),
+                  onTap: () => showPrayerOffsetDialog(context, counters),
                 ),
               if (counter.reminderType == ReminderType.daily)
                 ListTile(
@@ -107,7 +115,7 @@ class SettingsScreen extends StatelessWidget {
                         : s.timesSetCount(counter.dailyReminderTimes.length),
                   ),
                   trailing: const Icon(Icons.chevron_right),
-                  onTap: () => _showDailyTimesDialog(context, counters),
+                  onTap: () => showDailyTimesDialog(context, counters),
                 ),
             ],
             if (counters.counters.length > 1)
@@ -118,7 +126,7 @@ class SettingsScreen extends StatelessWidget {
                   s.deleteCounterLabel,
                   style: const TextStyle(color: Colors.red),
                 ),
-                onTap: () => _showDeleteDialog(context, counters),
+                onTap: () => showDeleteCounterDialog(context, counters),
               ),
 
             // Feedback section
@@ -189,7 +197,7 @@ class SettingsScreen extends StatelessWidget {
               title: Text(s.prayerLocationSection),
               subtitle: Text(_prayerLocationSubtitle(context)),
               trailing: const Icon(Icons.chevron_right),
-              onTap: () => _showPrayerLocationDialog(context),
+              onTap: () => showPrayerLocationDialog(context),
             ),
 
             // Backup section
@@ -227,40 +235,6 @@ class SettingsScreen extends StatelessWidget {
     );
   }
 
-  void _showPrayerOffsetDialog(
-      BuildContext context, CountersProvider counters) {
-    final s = S.of(context);
-    final counter = counters.activeCounter;
-    final options = [5, 10, 15, 20, 30];
-
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text(s.prayerOffsetLabel),
-        content: SizedBox(
-          width: double.maxFinite,
-          child: ListView.builder(
-            shrinkWrap: true,
-            itemCount: options.length,
-            itemBuilder: (context, index) {
-              final minutes = options[index];
-              return ListTile(
-                title: Text(s.prayerOffsetSubtitle(minutes)),
-                selected: counter.prayerOffsetMinutes == minutes,
-                onTap: () async {
-                  await counters.setPrayerOffset(counter.id, minutes);
-                  if (context.mounted) {
-                    Navigator.pop(context);
-                  }
-                },
-              );
-            },
-          ),
-        ),
-      ),
-    );
-  }
-
   String _prayerLocationSubtitle(BuildContext context) {
     final settings = context.watch<SettingsProvider>().settings;
     if (settings.latitude == null || settings.longitude == null) {
@@ -268,91 +242,6 @@ class SettingsScreen extends StatelessWidget {
     }
     return '${settings.latitude!.toStringAsFixed(3)}, '
         '${settings.longitude!.toStringAsFixed(3)}';
-  }
-
-  Future<void> _showPrayerLocationDialog(BuildContext context) async {
-    final s = S.of(context);
-    final settings = context.read<SettingsProvider>();
-    final counters = context.read<CountersProvider>();
-    final notifications = context.read<NotificationService>();
-
-    final latController =
-        TextEditingController(text: settings.settings.latitude?.toString() ?? '');
-    final lngController = TextEditingController(
-        text: settings.settings.longitude?.toString() ?? '');
-    var method = settings.settings.calculationMethod;
-
-    final methods = [
-      ('muslim_world_league', 'Muslim World League'),
-      ('umm_al_qura', 'Umm al-Qura'),
-      ('egyptian', 'Egyptian'),
-      ('karachi', 'Karachi'),
-      ('dubai', 'Dubai'),
-      ('qatar', 'Qatar'),
-      ('kuwait', 'Kuwait'),
-      ('moonsighting_committee', 'Moonsighting Committee'),
-      ('north_america', 'ISNA'),
-    ];
-
-    final saved = await showDialog<bool>(
-      context: context,
-      builder: (dialogContext) => StatefulBuilder(
-        builder: (dialogContext, setDialogState) => AlertDialog(
-          title: Text(s.prayerLocationSection),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: latController,
-                keyboardType:
-                    const TextInputType.numberWithOptions(decimal: true),
-                decoration: InputDecoration(labelText: s.latitudeLabel),
-              ),
-              TextField(
-                controller: lngController,
-                keyboardType:
-                    const TextInputType.numberWithOptions(decimal: true),
-                decoration: InputDecoration(labelText: s.longitudeLabel),
-              ),
-              const SizedBox(height: 8),
-              DropdownButtonFormField<String>(
-                initialValue: method,
-                decoration: InputDecoration(labelText: s.methodLabel),
-                items: [
-                  for (final m in methods)
-                    DropdownMenuItem(value: m.$1, child: Text(m.$2)),
-                ],
-                onChanged: (value) =>
-                    setDialogState(() => method = value ?? method),
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(dialogContext, false),
-              child: Text(s.cancel),
-            ),
-            TextButton(
-              onPressed: () => Navigator.pop(dialogContext, true),
-              child: Text(s.save),
-            ),
-          ],
-        ),
-      ),
-    );
-
-    if (saved != true) return;
-    final lat = double.tryParse(latController.text.trim());
-    final lng = double.tryParse(lngController.text.trim());
-    if (lat == null || lng == null) return;
-
-    await settings.setPrayerLocation(lat, lng);
-    await settings.setCalculationMethod(method);
-    // Refresh the rolling prayer window with the new location.
-    try {
-      await notifications.rescheduleAll(counters.counters,
-          settings: settings.settings);
-    } catch (_) {}
   }
 
   void _showExportSheet(BuildContext context) {
@@ -507,325 +396,4 @@ class SettingsScreen extends StatelessWidget {
           color: iconColor ?? Theme.of(context).colorScheme.primary, size: 20),
     );
   }
-
-  String _getIntervalText(S s, int minutes) {
-    if (minutes < 60) {
-      return s.everyMinutes(minutes);
-    } else if (minutes == 60) {
-      return s.everyHour;
-    } else {
-      final hours = minutes ~/ 60;
-      return s.everyHours(hours);
-    }
-  }
-
-  void _showRenameDialog(BuildContext context, CountersProvider counters) {
-    final s = S.of(context);
-    final counter = counters.activeCounter;
-    final controller = TextEditingController(text: counter.name);
-    showDialog(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: Text(s.renameTitle),
-        content: TextField(
-          controller: controller,
-          autofocus: true,
-          decoration: InputDecoration(labelText: s.dhikrNameLabel),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext),
-            child: Text(s.cancel),
-          ),
-          TextButton(
-            onPressed: () async {
-              final name = controller.text.trim();
-              if (name.isNotEmpty) {
-                await counters.renameCounter(counter.id, name);
-              }
-              if (dialogContext.mounted) {
-                Navigator.pop(dialogContext);
-              }
-            },
-            child: Text(s.save),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _showDeleteDialog(BuildContext context, CountersProvider counters) {
-    final s = S.of(context);
-    final counter = counters.activeCounter;
-    showDialog(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: Text(s.deleteCounterLabel),
-        content: Text(s.deleteConfirmBody(counter.name)),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext),
-            child: Text(s.cancel),
-          ),
-          TextButton(
-            onPressed: () async {
-              await counters.deleteCounter(counter.id);
-              if (dialogContext.mounted) {
-                Navigator.pop(dialogContext);
-              }
-            },
-            child:
-                Text(s.deleteAction, style: const TextStyle(color: Colors.red)),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _showDailyTargetDialog(BuildContext context, CountersProvider counters) {
-    final counter = counters.activeCounter;
-    showDialog(
-      context: context,
-      builder: (dialogContext) => _DailyTargetDialog(
-        counters: counters,
-        counterId: counter.id,
-        initialValue: counter.dailyTarget,
-      ),
-    );
-  }
-
-  void _showReminderTypeDialog(
-    BuildContext context,
-    CountersProvider counters,
-  ) {
-    final s = S.of(context);
-    final counter = counters.activeCounter;
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text(s.reminderTypeLabel),
-        content: RadioGroup<ReminderType>(
-          groupValue: counter.reminderType,
-          onChanged: (value) async {
-            await counters.setReminderType(counter.id, value!);
-            if (context.mounted) {
-              Navigator.pop(context);
-            }
-          },
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              RadioListTile<ReminderType>(
-                title: Text(s.repeatTypeOption),
-                subtitle: Text(s.repeatTypeSub),
-                value: ReminderType.interval,
-              ),
-              RadioListTile<ReminderType>(
-                title: Text(s.dailyTypeOption),
-                subtitle: Text(s.dailyTypeSub),
-                value: ReminderType.daily,
-              ),
-              RadioListTile<ReminderType>(
-                title: Text(s.prayerTypeOption),
-                subtitle: Text(s.prayerTypeSub),
-                value: ReminderType.prayer,
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  void _showIntervalDialog(BuildContext context, CountersProvider counters) {
-    final s = S.of(context);
-    final counter = counters.activeCounter;
-    final intervals = [15, 30, 60, 120, 180, 360, 720];
-
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text(s.intervalLabel),
-        content: SizedBox(
-          width: double.maxFinite,
-          child: ListView.builder(
-            shrinkWrap: true,
-            itemCount: intervals.length,
-            itemBuilder: (context, index) {
-              final minutes = intervals[index];
-              return ListTile(
-                title: Text(_getIntervalText(s, minutes)),
-                selected: counter.reminderIntervalMinutes == minutes,
-                onTap: () async {
-                  await counters.setReminderInterval(counter.id, minutes);
-                  if (context.mounted) {
-                    Navigator.pop(context);
-                  }
-                },
-              );
-            },
-          ),
-        ),
-      ),
-    );
-  }
-
-  void _showDailyTimesDialog(
-    BuildContext context,
-    CountersProvider counters,
-  ) {
-    final s = S.of(context);
-    final counter = counters.activeCounter;
-    final times = List<int>.from(counter.dailyReminderTimes);
-
-    showDialog(
-      context: context,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setState) {
-          return AlertDialog(
-            title: Text(s.dailyTimesLabel),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Expanded(
-                  child: ListView.builder(
-                    shrinkWrap: true,
-                    itemCount: times.length,
-                    itemBuilder: (context, index) {
-                      final time = times[index];
-                      final hour = time ~/ 60;
-                      final minute = time % 60;
-                      return ListTile(
-                        title: Text(
-                            '${hour.toString().padLeft(2, '0')}:${minute.toString().padLeft(2, '0')}'),
-                        trailing: IconButton(
-                          icon: const Icon(Icons.delete),
-                          onPressed: () {
-                            setState(() {
-                              times.removeAt(index);
-                            });
-                          },
-                        ),
-                      );
-                    },
-                  ),
-                ),
-                const Divider(),
-                ElevatedButton.icon(
-                  onPressed: () async {
-                    final picked = await showTimePicker(
-                      context: context,
-                      initialTime: TimeOfDay.now(),
-                    );
-                    if (picked != null) {
-                      setState(() {
-                        times.add(picked.hour * 60 + picked.minute);
-                        times.sort();
-                      });
-                    }
-                  },
-                  icon: const Icon(Icons.add),
-                  label: Text(s.addTime),
-                ),
-              ],
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: Text(s.cancel),
-              ),
-              TextButton(
-                onPressed: () async {
-                  await counters.setDailyReminderTimes(counter.id, times);
-                  if (context.mounted) {
-                    Navigator.pop(context);
-                  }
-                },
-                child: Text(s.save),
-              ),
-            ],
-          );
-        },
-      ),
-    );
-  }
 }
-
-class _DailyTargetDialog extends StatefulWidget {
-  const _DailyTargetDialog({
-    required this.counters,
-    required this.counterId,
-    required this.initialValue,
-  });
-
-  final CountersProvider counters;
-  final String counterId;
-  final int initialValue;
-
-  @override
-  State<_DailyTargetDialog> createState() => _DailyTargetDialogState();
-}
-
-class _DailyTargetDialogState extends State<_DailyTargetDialog> {
-  late final TextEditingController _controller = TextEditingController(
-    text: widget.initialValue > 0 ? '${widget.initialValue}' : '',
-  );
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  Future<void> _submit() async {
-    final value = int.tryParse(_controller.text.trim()) ?? 0;
-    await widget.counters.setDailyTarget(widget.counterId, value < 0 ? 0 : value);
-    if (mounted) {
-      Navigator.pop(context);
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final s = S.of(context);
-    return AlertDialog(
-      title: Text(s.dailyTargetLabel),
-      content: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          TextField(
-            controller: _controller,
-            keyboardType: TextInputType.number,
-            decoration: InputDecoration(
-              labelText: s.timesCountLabel,
-            ),
-          ),
-          const SizedBox(height: 16),
-          Wrap(
-            spacing: 8,
-            children: [33, 100, 500, 1000]
-                .map(
-                  (value) => ActionChip(
-                    label: Text('$value'),
-                    onPressed: () => _controller.text = '$value',
-                  ),
-                )
-                .toList(),
-          ),
-        ],
-      ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(context),
-          child: Text(s.cancel),
-        ),
-        TextButton(
-          onPressed: _submit,
-          child: Text(s.save),
-        ),
-      ],
-    );
-  }
-}
-
-
